@@ -881,7 +881,7 @@
 		interrupts = <0 95 0>;
 		interrupt-names = "qup_err_intr";
 		qcom,i2c-bus-freq = <400000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,scl-gpio = <&msmgpio 3 0>;
 		qcom,sda-gpio = <&msmgpio 2 0>;
 		qcom,master-id = <86>;
@@ -897,7 +897,7 @@
 		interrupts = <0 96 0>;
 		interrupt-names = "qup_err_intr";
 		qcom,i2c-bus-freq = <400000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,master-id = <86>;
 	};
 
@@ -911,7 +911,7 @@
 		interrupts = <0 97 0>;
 		interrupt-names = "qup_err_intr";
 		qcom,i2c-bus-freq = <100000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,scl-gpio = <&msmgpio 11 0>;
 		qcom,sda-gpio = <&msmgpio 10 0>;
 		qcom,master-id = <86>;
@@ -927,7 +927,7 @@
 		interrupts = <0 100 0>;
 		interrupt-names = "qup_err_intr";
 		qcom,i2c-bus-freq = <100000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,scl-gpio = <&msmgpio 30 0>;
 		qcom,sda-gpio = <&msmgpio 29 0>;
 		qcom,master-id = <86>;
@@ -944,7 +944,7 @@
 		interrupts = <0 103 0>;
 		interrupt-names = "qup_err_intr";
 		qcom,i2c-bus-freq = <100000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,scl-gpio = <&msmgpio 52 0>;
 		qcom,sda-gpio = <&msmgpio 51 0>;
 		qcom,master-id = <84>;
@@ -1633,7 +1633,9 @@
 			< 3509 /* 460 MHz */ >,
 			< 4684 /* 614 MHz */ >,
 			< 6103 /* 800 MHz */ >,
-			< 7102 /* 931 MHz */ >;
+			< 7102 /* 931 MHz */ >,
+			< 7674 /* 1006 MHz */ >,
+			< 8246 /* 1081 MHz */ >;
 	};
 
 	qcom,kraitbw-l2pm {
@@ -1646,21 +1648,27 @@
 		reg = <0 4>;
 		compatible = "qcom,msm-cpufreq";
 		qcom,cpufreq-table =
-			<  300000  300000  572 >,
-			<  422400  422400 1144 >,
-			<  652800  499200 1525 >,
-			<  729600  576000 2342 >,
-			<  883200  576000 2342 >,
-			<  960000  960000 3509 >,
-			< 1036800 1036800 3509 >,
-			< 1190400 1036800 3509 >,
-			< 1267200 1267200 4684 >,
-			< 1497600 1497600 4684 >,
-			< 1574400 1574400 6103 >,
-			< 1728000 1651200 6103 >,
-			< 1958400 1728000 7102 >,
-			< 2265600 1728000 7102 >,
-			< 2457600 1728000 7102 >;
+                        <  268800  652800  381 >,
+			<  300000  729600  381 >,
+			<  422400  883200  572 >,
+			<  652800  960000  572 >,
+			<  729600 1036800  762 >,
+			<  883200 1190400  762 >,
+			<  960000 1267200 1144 >,
+			< 1036800 1497600 1525 >,
+			< 1190400 1574400 2342 >,
+			< 1267200 1728000 3509 >,
+			< 1497600 1958400 4684 >,
+			< 1574400 2265600 6103 >,
+			< 1728000 2419200 7102 >,
+			< 1958400 2457600 7674 >,
+			< 2265600 2534400 7674 >,
+                        < 2457600 2688000 7674 >,
+                        < 2534400 2764800 8246 >,
+                        < 2611200 2841600 8246 >,
+                        < 2764800 2841600 8246 >,
+                        < 2841600 2899200 8246 >,
+                        < 2899200 2899200 8246 >;
 	};
 
 	usb3: qcom,ssusb@f9200000 {
@@ -2343,13 +2351,13 @@
 	qcom,msm-thermal {
 		compatible = "qcom,msm-thermal";
 		qcom,sensor-id = <5>;
-		qcom,poll-ms = <250>;
-		qcom,limit-temp = <80>;
-		qcom,temp-hysteresis = <10>;
-		qcom,freq-step = <2>;
+		qcom,poll-ms = <500>;
+		qcom,limit-temp = <90>;
+		qcom,temp-hysteresis = <5>;
+		qcom,freq-step = <1>;
 		qcom,freq-control-mask = <0xf>;
-		qcom,core-limit-temp = <85>;
-		qcom,core-temp-hysteresis = <10>;
+		qcom,core-limit-temp = <95>;
+		qcom,core-temp-hysteresis = <5>;
 		qcom,core-control-mask = <0xe>;
 		qcom,hotplug-temp = <110>;
 		qcom,hotplug-temp-hysteresis = <20>;
@@ -2361,8 +2369,8 @@
 		qcom,freq-mitigation-control-mask = <0x01>;
 		qcom,vdd-restriction-temp = <5>;
 		qcom,vdd-restriction-temp-hysteresis = <10>;
-		qcom,pmic-sw-mode-temp = <85>;
-		qcom,pmic-sw-mode-temp-hysteresis = <75>;
+		qcom,pmic-sw-mode-temp = <90>;
+		qcom,pmic-sw-mode-temp-hysteresis = <85>;
 		qcom,pmic-sw-mode-regs = "vdd-dig";
 		vdd-dig-supply = <&pm8841_s2_floor_corner>;
 		vdd-gfx-supply = <&pm8841_s4_floor_corner>;
