@@ -1,0 +1,3 @@
+config TUNED_PLUG
+	bool "Tuned CPU Hotplugger"
+        def_bool y
