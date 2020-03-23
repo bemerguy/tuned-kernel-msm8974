@@ -33,8 +33,8 @@
 #include <linux/suspend.h>
 
 #define MAX_LONG_SIZE 24
-#define DEFAULT_RQ_POLL_JIFFIES 1
-#define DEFAULT_DEF_TIMER_JIFFIES 5
+#define DEFAULT_RQ_POLL_JIFFIES 2
+#define DEFAULT_DEF_TIMER_JIFFIES 15
 
 struct notifier_block freq_transition;
 struct notifier_block cpu_hotplug;
@@ -444,7 +444,7 @@ static int __init msm_rq_stats_init(void)
 	return -ENOSYS;
 #endif
 
-	rq_wq = create_singlethread_workqueue("rq_stats");
+	rq_wq = create_singlethread_workqueue("mpdecision-rqstats");
 	BUG_ON(!rq_wq);
 	INIT_WORK(&rq_info.def_timer_work, def_work_fn);
 	spin_lock_init(&rq_lock);
