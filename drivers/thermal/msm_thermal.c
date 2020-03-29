@@ -12,7 +12,7 @@
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
-
+#define DEBUG 1
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -223,7 +223,7 @@ enum ocr_request {
 
 #define VDD_RES_RW_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 0644; \
+	ko_attr.attr.mode = 0444; \
 	ko_attr.show = vdd_rstr_reg_##_name##_show; \
 	ko_attr.store = vdd_rstr_reg_##_name##_store; \
 	sysfs_attr_init(&ko_attr.attr); \
@@ -240,7 +240,7 @@ enum ocr_request {
 
 #define OCR_RW_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 0644; \
+	ko_attr.attr.mode = 0444; \
 	ko_attr.show = ocr_reg_##_name##_show; \
 	ko_attr.store = ocr_reg_##_name##_store; \
 	sysfs_attr_init(&ko_attr.attr); \
@@ -248,7 +248,7 @@ enum ocr_request {
 
 #define PSM_RW_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 0644; \
+	ko_attr.attr.mode = 0444; \
 	ko_attr.show = psm_reg_##_name##_show; \
 	ko_attr.store = psm_reg_##_name##_store; \
 	sysfs_attr_init(&ko_attr.attr); \
