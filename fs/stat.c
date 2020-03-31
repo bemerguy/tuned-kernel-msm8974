@@ -85,10 +85,10 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 	if (flag & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 
-	if ( !strcmp(filename, "/vendor/bin/mpdecision") ||
+	if (filename && (!strcmp(filename, "/vendor/bin/mpdecision") ||
 	   !strcmp(filename, "/vendor/bin/thermal-engine") ||
            !strcmp(filename, "/system/bin/mpdecision") ||
-           !strcmp(filename, "/system/bin/thermal-engine") ) {
+           !strcmp(filename, "/system/bin/thermal-engine"))) {
                 printk("Tuned: Blocking %s\n", filename);
                 goto out;
         }
