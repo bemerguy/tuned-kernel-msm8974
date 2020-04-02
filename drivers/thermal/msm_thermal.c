@@ -1635,9 +1635,9 @@ static int freq_mitigation_notify(enum thermal_trip_type type,
 	pr_debug("%s reached temp threshold: %d\n",
 		cpu_node->sensor_type, temp);
 
-	if (!(msm_thermal_info.freq_mitig_control_mask &
-		BIT(cpu_node->cpu)))
-		return 0;
+//	if (!(msm_thermal_info.freq_mitig_control_mask &
+//		BIT(cpu_node->cpu)))
+//		return 0;
 
 	switch (type) {
 	case THERMAL_TRIP_CONFIGURABLE_HI:
@@ -1682,8 +1682,8 @@ static void freq_mitigation_init(void)
 		goto init_freq_thread;
 
 	for_each_possible_cpu(cpu) {
-		if (!(msm_thermal_info.freq_mitig_control_mask & BIT(cpu)))
-			continue;
+//		if (!(msm_thermal_info.freq_mitig_control_mask & BIT(cpu)))
+//			continue;
 		hi_thresh = &cpus[cpu].threshold[FREQ_THRESHOLD_HIGH];
 		low_thresh = &cpus[cpu].threshold[FREQ_THRESHOLD_LOW];
 
