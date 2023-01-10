@@ -587,7 +587,7 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= $(call cc-option,-Oz,-Os)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -Os -mfpu=neon-vfpv4 -ffast-math -finline-functions -funroll-loops
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
