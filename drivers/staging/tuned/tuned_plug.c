@@ -30,16 +30,16 @@ unsigned int tunedplug_active __read_mostly = 1;
 module_param(tunedplug_active, uint, 0644);
 
 #define DEF_SAMPLING	HZ/100 	//10ms
-#define MAX_SAMPLING	HZ/50	//20ms
+#define MAX_SAMPLING	HZ	//1000ms
 
 /* frequency threshold to wake one more cpu */
 #define PMAX 1267200
 
 /* up threshold. lower means more delay */
-static const int u[] = { -45, -20, 0 };
+static const int u[] = { -15, -8, 0 };
 
 /* down threshold. higher means more delay */
-static const int d[] = { 30, 60, 100 };
+static const int d[] = { 10, 20, 33 };
 
 
 static const unsigned long max_sampling = MAX_SAMPLING;
@@ -79,12 +79,12 @@ static void inline up_one(void){
 
                                 if (cpufreq_get_policy(&policy, i) != 0) {
                                         pr_info("tunedplug: no policy for cpu %d ?", i);
-					down[i]=600;
+					down[i]=200;
 				}
                                 else
                                         __cpufreq_driver_target(p, p->max, CPUFREQ_RELATION_H);
 
-                                down[i]=-60;
+                                down[i]=-20;
                         }
                         else down[i]--;
                         return;
