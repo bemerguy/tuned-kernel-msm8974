@@ -1242,7 +1242,7 @@ struct init_on_cpu {
 	int rc;
 };
 
-static void __cpuinit powernowk8_cpu_init_on_cpu(void *_init_on_cpu)
+static void powernowk8_cpu_init_on_cpu(void *_init_on_cpu)
 {
 	struct init_on_cpu *init_on_cpu = _init_on_cpu;
 
@@ -1270,15 +1270,12 @@ static const char missing_pss_msg[] =
 	FW_BUG PFX "If that doesn't help, try upgrading your BIOS.\n";
 
 /* per CPU init entry point to the driver */
-static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
+static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	struct init_on_cpu init_on_cpu;
 	int rc;
 	struct cpuinfo_x86 *c = &cpu_data(pol->cpu);
-
-	if (!cpu_online(pol->cpu))
-		return -ENODEV;
 
 	smp_call_function_single(pol->cpu, check_supported_cpu, &rc, 1);
 	if (rc)
@@ -1375,7 +1372,7 @@ err_out:
 	return -ENODEV;
 }
 
-static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
+static int powernowk8_cpu_exit(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 
@@ -1504,7 +1501,7 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 	.target		= powernowk8_target,
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= powernowk8_cpu_init,
-	.exit		= __devexit_p(powernowk8_cpu_exit),
+	.exit		= powernowk8_cpu_exit,
 	.get		= powernowk8_get,
 	.name		= "powernow-k8",
 	.owner		= THIS_MODULE,
@@ -1553,7 +1550,7 @@ static struct notifier_block cpb_nb = {
 };
 
 /* driver entry point for init */
-static int __cpuinit powernowk8_init(void)
+static int powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0, cpu;
 	int rv;

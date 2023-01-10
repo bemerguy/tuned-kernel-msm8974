@@ -23,6 +23,8 @@
 #include <asm/cputime.h>
 
 #define CPUFREQ_NAME_LEN 16
+/* Print length for names. Extra 1 space for accomodating '\n' in prints */
+#define CPUFREQ_NAME_PLEN (CPUFREQ_NAME_LEN + 1)
 
 
 /*********************************************************************
@@ -509,4 +511,5 @@ void cpufreq_frequency_table_put_attr(unsigned int cpu);
 
 void acct_update_power(struct task_struct *p, cputime_t cputime);
 
+const char *cpufreq_get_current_driver(void);
 #endif /* _LINUX_CPUFREQ_H */

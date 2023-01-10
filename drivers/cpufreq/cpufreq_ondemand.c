@@ -1297,7 +1297,7 @@ static int dbs_sync_thread(void *data)
 	this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 
 	while (1) {
-		wait_event(this_dbs_info->sync_wq,
+		wait_event_interruptible(this_dbs_info->sync_wq,
 			   sync_pending(this_dbs_info) ||
 			   kthread_should_stop());
 
@@ -1592,6 +1592,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				this_dbs_info->cur_policy,
 				policy,
 				dbs_tuners_ins.powersave_bias);
+		dbs_check_cpu(this_dbs_info);
 		mutex_unlock(&this_dbs_info->timer_mutex);
 		break;
 	}
