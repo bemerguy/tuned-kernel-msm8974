@@ -57,9 +57,6 @@ step0_copy_code()
 {
 	echo -e $COLOR_GREEN"\n0 - copy code\n"$COLOR_NEUTRAL
 
-	# Replace version information in mkcompile_h with the one from x-settings.sh
-	sed "s/\`echo \$LINUX_COMPILE_BY | \$UTS_TRUNCATE\`/Boeffla-Kernel-4.1/g" -i scripts/mkcompile_h
-	sed "s/\`echo \$LINUX_COMPILE_HOST | \$UTS_TRUNCATE\`/heilerbemerguy/g" -i scripts/mkcompile_h
 }
 
 step2_make_config()
@@ -72,7 +69,7 @@ step2_make_config()
 	MAKESTRING="ARCH=$ARCHITECTURE oldconfig"
 
 	if [ ! -z "$OUTPUT_FOLDER" ]; then
-		mkdir $OUTPUT_FOLDER
+		mkdir -p $OUTPUT_FOLDER
 		MAKESTRING="O=$OUTPUT_FOLDER $MAKESTRING"
 	        cp arch/arm/configs/$DEFCONFIG $OUTPUT_FOLDER/.config
 	fi
@@ -278,15 +275,11 @@ step4_prepare_anykernel()
 	# copy kernel image
 	cp $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE anykernel_boeffla/zImage
 
-		# copy dtb (if we have one)
-		if [ "y" == "$COMPILE_DTB" ]; then
-			cp $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img anykernel_boeffla/dt
-		fi
+	# copy dtb (if we have one)
+	if [ "y" == "$COMPILE_DTB" ]; then
+		cp $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img anykernel_boeffla/dt
+	fi
 
-	# replace variables in anykernel script
-	cd anykernel_boeffla
-	KERNELNAME="Flashing $KERNEL_NAME $BOEFFLA_VERSION"
-	sed -i "s;###kernelname###;${KERNELNAME};" META-INF/com/google/android/update-binary;
 }
 
 step5_create_anykernel_zip()
@@ -296,95 +289,13 @@ step5_create_anykernel_zip()
 	# Creating recovery flashable zip
 	echo -e ">>> create flashable zip\n"
 
+	cd anykernel_boeffla
+
 	# create zip file
 	rm *.zip
-	zip -r9 $BOEFFLA_FILENAME.zip * -x $BOEFFLA_FILENAME.zip
+	mkdir -p ../dist
+	zip -r9 ../dist/$BOEFFLA_FILENAME.zip *
 
-}
-
-stepR_rewrite_config()
-{
-	echo -e $COLOR_GREEN"\nr - rewrite config\n"$COLOR_NEUTRAL
-
-	# copy defconfig, run make oldconfig and copy it back
-	cd $SOURCE_PATH
-	cp arch/$ARCHITECTURE/configs/$DEFCONFIG .config
-	make oldconfig
-	cp .config arch/$ARCHITECTURE/configs/$DEFCONFIG
-	make mrproper
-
-	# commit change
-	git add arch/$ARCHITECTURE/configs/$DEFCONFIG
-	git commit
-}
-
-stepC_cleanup()
-{
-	echo -e $COLOR_GREEN"\nc - cleanup\n"$COLOR_NEUTRAL
-
-	# remove old build and repack folders, remove any logs
-	{
-		rm -r -f $BUILD_PATH
-		rm -r -f $REPACK_PATH
-		rm $ROOT_PATH/*.log
-	} 2>/dev/null
-}
-
-stepB_backup()
-{
-	echo -e $COLOR_GREEN"\nb - backup\n"$COLOR_NEUTRAL
-
-	# Create a tar backup in parent folder, gzip it and copy to verlies
-	BACKUP_FILE="$ROOT_DIR_NAME""_$(date +"%Y-%m-%d_%H-%M").tar.gz"
-
-	cd $ROOT_PATH
-	tar --use-compress-program=pigz -cvf $BACKUP_FILE source x-settings.sh
-	cd $SOURCE_PATH
-
-	# transfer backup only if smbshare configured
-	if [ -z "$SMB_SHARE_BACKUP" ]; then
-		echo -e "No backup smb share configured, not transfering backup.\n"
-	else
-		# copy backup to a SMB network storage and delete backup afterwards
-		smbclient $SMB_SHARE_BACKUP -U $SMB_AUTH_BACKUP -c "put $ROOT_PATH/$BACKUP_FILE $SMB_FOLDER_BACKUP\\$BACKUP_FILE"
-		rm $ROOT_PATH/$BACKUP_FILE
-	fi
-}
-
-display_help()
-{
-	echo
-	echo
-	echo "Function menu (anykernel version)"
-	echo "======================================================================"
-	echo
-	echo "0  = copy code         |  5  = create anykernel"
-	echo "1  = make clean        |  "
-	echo "2  = make config       |  7  = analyse log"
-	echo "3  = compile           |  8  = transfer kernel"
-	echo "4  = prepare anykernel |  9  = send finish mail"
-	echo
-	echo "rel = all, execute steps 0-9 - without CCACHE  |  r = rewrite config"
-	echo "a   = all, execute steps 0-9                   |  c = cleanup"
-	echo "u   = upd, execute steps 3-9                   |  b = backup"
-	echo
-	echo "======================================================================"
-	echo
-	echo "Parameters:"
-	echo
-	echo "  Boeffla version: $BOEFFLA_VERSION"
-	echo "  Kernel name:     $KERNEL_NAME"
-	echo "  CPU Cores:       $NUM_CPUS"
-	echo
-	echo "  Toolchain:       $TOOLCHAIN"
-	echo "  Root path:       $ROOT_PATH"
-	echo "  Root dir:        $ROOT_DIR_NAME"
-	echo "  Source path:     $SOURCE_PATH"
-	echo "  Build path:      $BUILD_PATH"
-	echo "  Repack path:     $REPACK_PATH"
-	echo "  Kernel Filename: $BOEFFLA_FILENAME"
-	echo
-	echo "======================================================================"
 }
 
 
@@ -442,15 +353,6 @@ case "$1" in
 		;;
 	9)
 		step9_send_finished_mail
-		;;
-	b)
-		stepB_backup
-		;;
-	c)
-		stepC_cleanup
-		;;
-	r)
-		stepR_rewrite_config
 		;;
 
 	*)
