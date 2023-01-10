@@ -31,6 +31,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/syscore_ops.h>
+#include <linux/sched.h>
 
 #include <trace/events/power.h>
 
