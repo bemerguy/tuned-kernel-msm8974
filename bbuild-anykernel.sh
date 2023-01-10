@@ -15,16 +15,13 @@ BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d")-$VAR"
 
 TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
 
-ARCHITECTURE=arm
 COMPILER_FLAGS_KERNEL="-Wno-maybe-uninitialized -Wno-array-bounds"
 COMPILER_FLAGS_MODULE="-Wno-maybe-uninitialized -Wno-array-bounds"
 
-KERNEL_IMAGE="zImage"
 COMPILE_DTB="y"
 DTBTOOL="dtbToolCM"
 DTBTOOL_CMD="-2"
 MODULES_IN_SYSTEM="y"
-OUTPUT_FOLDER="output"
 
 DEFCONFIG="lineage_klte_pn547_defconfig"
 
@@ -41,11 +38,11 @@ COLOR_GREEN="\033[1;32m"
 COLOR_NEUTRAL="\033[0m"
 
 if [ -z "$NUM_CPUS" ]; then
-	NUM_CPUS=`grep -c ^processor /proc/cpuinfo`
+	NUM_CPUS=$(($(nproc) - 1))
 fi
 
 # set environment
-export ARCH=$ARCHITECTURE
+export ARCH=arm
 export CROSS_COMPILE="$TOOLCHAIN"
 
 
@@ -66,12 +63,12 @@ step2_make_config()
 
 	# build make string depending on if we need to compile to an output folder
 	# and if we need to have a defconfig variant
-	MAKESTRING="ARCH=$ARCHITECTURE oldconfig"
+	MAKESTRING="ARCH=arm oldconfig"
 
-	if [ ! -z "$OUTPUT_FOLDER" ]; then
-		mkdir -p $OUTPUT_FOLDER
-		MAKESTRING="O=$OUTPUT_FOLDER $MAKESTRING"
-	        cp arch/arm/configs/$DEFCONFIG $OUTPUT_FOLDER/.config
+	if [ ! -z "out" ]; then
+		mkdir -p out
+		MAKESTRING="O=out $MAKESTRING"
+	        cp arch/arm/configs/$DEFCONFIG out/.config
 	fi
 
 case "$VAR" in
@@ -90,7 +87,7 @@ CONFIG_BCM2079X_NFC_I2C
 # CONFIG_NFC_PN547 is not set
 # CONFIG_NFC_PN547_PMC8974_CLK_REQ is not set
 CONFIG_BCM2079X_NFC_I2C=y
-" >> $OUTPUT_FOLDER/.config
+" >> out/.config
 
     echo "Compiling kernel for kltedv"
     ;;
@@ -120,7 +117,7 @@ CONFIG_CHARGER_SMB1357=y
 CONFIG_FELICA=y
 CONFIG_NFC_FELICA=y
 # CONFIG_CHARGE_LEVEL is not set
-" >> $OUTPUT_FOLDER/.config
+" >> out/.config
 
     echo "Compiling kernel for kltekdi"
     ;;
@@ -147,7 +144,7 @@ CONFIG_WLAN_REGION_CODE=300
 CONFIG_W1_CF=y
 CONFIG_SND_SOC_ES704_TEMP=y
 CONFIG_SENSORS_FPRINT_SECURE=y
-" >> $OUTPUT_FOLDER/.config
+" >> out/.config
 
     echo "Compiling kernel for kltechn"
     ;;
@@ -175,7 +172,7 @@ CONFIG_SEC_DEVIDE_RINGTONE_GAIN=y
 CONFIG_SND_SOC_ES704_TEMP=y
 CONFIG_USB_LOCK_SUPPORT_FOR_MDM=y
 CONFIG_SENSORS_SSP_SHTC1=y
-" >> $OUTPUT_FOLDER/.config
+" >> out/.config
 
     echo "Compiling kernel for kltekor"
     ;;
@@ -187,7 +184,7 @@ CONFIG_MACH_KLTE_LTNDUOS
 
     echo "
 CONFIG_MACH_KLTE_LTNDUOS=y
-" >> $OUTPUT_FOLDER/.config
+" >> out/.config
 
     echo "Compiling kernel for klteduos"
     ;;
@@ -206,6 +203,7 @@ CONFIG_SENSORS_FINGERPRINT_SYSFS
 CONFIG_SENSORS_VFS61XX
 CONFIG_SENSORS_VFS61XX_KO
 CONFIG_SENSORS_FPRINT_SECURE
+CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
 "
 
   echo "
@@ -217,7 +215,8 @@ CONFIG_MACH_KACTIVELTE_EUR=y
 # CONFIG_SENSORS_HALL_IRQ_CTRL is not set
 # CONFIG_KEYBOARD_CYPRESS_TOUCHKEY is not set
 # CONFIG_SENSORS_FINGERPRINT is not set
-" >> $OUTPUT_FOLDER/.config
+# CONFIG_BOEFFLA_TOUCH_KEY_CONTROL is not set
+" >> out/.config
 ;;
 
 esac
@@ -233,31 +232,14 @@ step3_compile()
 	TIMESTAMP1=$(date +%s)
 
         # remove a previous kernel image
-        rm $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE &>/dev/null
+        rm -rf out/arch/arm/boot &>/dev/null
+	rm anykernel_boeffla/zImage &>/dev/null
+	rm anykernel_boeffla/dt &>/dev/null
 
-	make -j$NUM_CPUS O=$OUTPUT_FOLDER CFLAGS_KERNEL="$COMPILER_FLAGS_KERNEL" CFLAGS_MODULE="$COMPILER_FLAGS_MODULE" CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
-
-	# compile dtb if required
-	if [ "y" == "$COMPILE_DTB" ]; then
-		echo -e ">>> compiling DTB\n"
-		echo
-
-		# Compile dtb (device tree blob) file
-		if [ -f $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img ]; then
-			rm $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img
-		fi
-
-		chmod 777 tools_boeffla/$DTBTOOL
-		tools_boeffla/$DTBTOOL $DTBTOOL_CMD -o $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img -s 2048 -p $OUTPUT_FOLDER/scripts/dtc/ $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/
-	fi
-
-	TIMESTAMP2=$(date +%s)
-
-	# Log compile time (screen output)
-	echo "compile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds"
+	make -j$NUM_CPUS O=out CFLAGS_KERNEL="$COMPILER_FLAGS_KERNEL" CFLAGS_MODULE="$COMPILER_FLAGS_MODULE" CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
 
        # if kernel image does not exist, exit processing
-       if [ ! -e $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE ]; then
+       if [ ! -e out/arch/arm/boot/zImage ]; then
                echo -e $COLOR_RED
                echo ""
                echo "Compile was NOT successful !! Aborting."
@@ -266,6 +248,20 @@ step3_compile()
                exit
        fi
 
+	# compile dtb if required
+	if [ "y" == "$COMPILE_DTB" ]; then
+		echo -e ">>> compiling DTB\n"
+		echo
+
+		chmod 777 tools_boeffla/$DTBTOOL
+		tools_boeffla/$DTBTOOL $DTBTOOL_CMD -o out/arch/arm/boot/dt.img -s 2048 -p out/scripts/dtc/ out/arch/arm/boot/
+	fi
+
+	TIMESTAMP2=$(date +%s)
+
+	# Log compile time (screen output)
+	echo "compile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds"
+
 }
 
 step4_prepare_anykernel()
@@ -273,11 +269,11 @@ step4_prepare_anykernel()
 	echo -e $COLOR_GREEN"\n4 - prepare anykernel\n"$COLOR_NEUTRAL
 
 	# copy kernel image
-	cp $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/$KERNEL_IMAGE anykernel_boeffla/zImage
+	cp out/arch/arm/boot/zImage anykernel_boeffla/zImage
 
 	# copy dtb (if we have one)
 	if [ "y" == "$COMPILE_DTB" ]; then
-		cp $OUTPUT_FOLDER/arch/$ARCHITECTURE/boot/dt.img anykernel_boeffla/dt
+		cp out/arch/arm/boot/dt.img anykernel_boeffla/dt
 	fi
 
 }
@@ -292,7 +288,7 @@ step5_create_anykernel_zip()
 	cd anykernel_boeffla
 
 	# create zip file
-	rm *.zip
+	rm *.zip &>/dev/null
 	mkdir -p ../dist
 	zip -r9 ../dist/$BOEFFLA_FILENAME.zip *
 
