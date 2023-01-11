@@ -288,8 +288,9 @@ step5_create_anykernel_zip()
 	cd anykernel_boeffla
 
 	# create zip file
-	rm *.zip &>/dev/null
 	mkdir -p ../dist
+
+	rm ../dist/$BOEFFLA_FILENAME.zip &>/dev/null
 	zip -r9 ../dist/$BOEFFLA_FILENAME.zip *
 
 }
