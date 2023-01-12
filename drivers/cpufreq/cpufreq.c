@@ -452,6 +452,9 @@ static ssize_t store_##file_name					\
 {									\
 	unsigned int ret;						\
 	struct cpufreq_policy new_policy;				\
+                                                                        \
+	if (!strcmp(current->comm, "init")) 				\
+		return -EINVAL;						\
 									\
 	ret = cpufreq_get_policy(&new_policy, policy->cpu);		\
 	if (ret)							\
