@@ -34,10 +34,10 @@ module_param(tunedplug_active, uint, 0644);
 #define PMAX 1267200
 
 /* up threshold. lower means more delay */
-static const int u[] = { -15, -8, 0 };
+static const int u[] = { -45, -33, -1 };
 
 /* down threshold. higher means more delay */
-static const int d[] = { 10, 20, 33 };
+static const int d[] = { 40, 70, 110 };
 
 
 static const unsigned long max_sampling = MAX_SAMPLING;
@@ -45,7 +45,7 @@ static unsigned long sampling_time __read_mostly = DEF_SAMPLING;
 
 bool displayon __read_mostly = true;
 
-static int down[NR_CPUS-1];
+static int down[NR_CPUS-1] = {0};
 /* 123 are cpu cores. */
 
 static void inline down_one(void){
@@ -56,7 +56,7 @@ static void inline down_one(void){
                                 cpu_down(i);
                                 pr_info("tunedplug: DOWN cpu %d. (%d > %d) sampling: %ums\n",
 					i, down[i], d[i-1], jiffies_to_msecs(sampling_time));
-                                down[i]=0;
+                                down[i]=10;
 				return;
                 	}
                 	else down[i]++;
@@ -77,12 +77,13 @@ static void inline up_one(void){
 
                                 if (cpufreq_get_policy(&policy, i) != 0) {
                                         pr_info("tunedplug: no policy for cpu %d ?", i);
-					down[i]=200;
+					down[i]=600; //stay a good time without trying to up
 				}
-                                else
+                                else {
                                         __cpufreq_driver_target(p, p->max, CPUFREQ_RELATION_H);
 
-                                down[i]=-20;
+                                	down[i]=-60; //a bit more than u[0] to stay up longer
+				}
                         }
                         else down[i]--;
                         return;
