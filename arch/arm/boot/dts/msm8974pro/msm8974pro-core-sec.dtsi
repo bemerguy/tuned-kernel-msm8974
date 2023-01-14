@@ -2351,22 +2351,22 @@
 	qcom,msm-thermal {
 		compatible = "qcom,msm-thermal";
 		qcom,sensor-id = <5>;
-		qcom,poll-ms = <500>;
-		qcom,limit-temp = <90>;
+		qcom,poll-ms = <100>;
+		qcom,limit-temp = <80>;
 		qcom,temp-hysteresis = <5>;
-		qcom,freq-step = <1>;
+		qcom,freq-step = <4>;
 		qcom,freq-control-mask = <0xf>;
-		qcom,core-limit-temp = <95>;
+		qcom,core-limit-temp = <100>;
 		qcom,core-temp-hysteresis = <5>;
 		qcom,core-control-mask = <0xe>;
-		qcom,hotplug-temp = <110>;
-		qcom,hotplug-temp-hysteresis = <20>;
+		qcom,hotplug-temp = <105>;
+		qcom,hotplug-temp-hysteresis = <10>;
 		qcom,cpu-sensors = "tsens_tz_sensor5", "tsens_tz_sensor6",
 				"tsens_tz_sensor7", "tsens_tz_sensor8";
 		qcom,freq-mitigation-temp = <110>;
-		qcom,freq-mitigation-temp-hysteresis = <20>;
+		qcom,freq-mitigation-temp-hysteresis = <10>;
 		qcom,freq-mitigation-value = <960000>;
-		qcom,freq-mitigation-control-mask = <0x01>;
+		qcom,freq-mitigation-control-mask = <0xf>;
 		qcom,vdd-restriction-temp = <5>;
 		qcom,vdd-restriction-temp-hysteresis = <10>;
 		qcom,pmic-sw-mode-temp = <90>;
