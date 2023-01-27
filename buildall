@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for f in klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr
+do
+./bbuild-anykernel.sh a $f
+done
