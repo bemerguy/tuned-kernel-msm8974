@@ -11,7 +11,7 @@
 #######################################
 VAR="$2"
 
-BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d")-$VAR"
+BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d%H%M")-$VAR"
 
 TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
 
