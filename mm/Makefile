@@ -1,7 +1,7 @@
 #
 # Makefile for the linux memory manager.
 #
-
+ccflags-y += -O3
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \

@@ -1,4 +1,4 @@
-
+ccflags-y += -O3
 # Do not instrument the tracer itself:
 
 ifdef CONFIG_FUNCTION_TRACER
