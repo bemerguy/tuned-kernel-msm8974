@@ -587,7 +587,15 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= $(call cc-option,-Oz,-Os)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -Os -mfpu=neon-vfpv4 -ffast-math -finline-functions -funroll-loops
+EXTRA		+= -fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-constant \
+                -fgcse-sm -fgcse-las -fipa-pta -ftree-lrs -fgcse-after-reload -fpeel-loops -fpredictive-commoning \
+                -freorder-blocks-algorithm=stc -fira-loop-pressure \
+                --param=max-tail-merge-comparisons=20000 --param=max-gcse-memory=2147483647 \
+                --param=max-tail-merge-iterations=20000 --param=max-cse-path-length=40000 --param=max-vartrack-size=0 \
+                --param=max-cse-insns=40000 --param=max-cselib-memory-locations=500000 --param=max-reload-search-insns=500000 \
+                --param=max-modulo-backtrack-attempts=500000 --param=max-hoist-depth=0 --param=max-pending-list-length=10000 \
+                --param=max-delay-slot-live-search=10000 --param=max-delay-slot-insn-search=10000 --param=inline-min-speedup=5
+KBUILD_CFLAGS	+= -O2 -mfpu=neon-vfpv4 -ffast-math -finline-functions -funroll-loops $(EXTRA)
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
@@ -620,7 +628,7 @@ KBUILD_CFLAGS += $(stackp-flag)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
 ifdef CONFIG_FRAME_POINTER
-KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+#KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
 # pointers.  For those, we don't have FUNCTION_TRACER automatically
