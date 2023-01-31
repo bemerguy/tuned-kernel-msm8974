@@ -1558,13 +1558,21 @@ static int
 write_pool(struct entropy_store *r, const char __user *buffer, size_t count)
 {
 	size_t bytes;
-	__u32 buf[16];
+	__u32 t, buf[16];
 	const char __user *p = buffer;
 
 	while (count > 0) {
+		int b, i = 0;
+
 		bytes = min(count, sizeof(buf));
 		if (copy_from_user(&buf, p, bytes))
 			return -EFAULT;
+
+		for (b = bytes ; b > 0 ; b -= sizeof(__u32), i++) {
+			if (!arch_get_random_int(&t))
+				break;
+			buf[i] ^= t;
+		}
 
 		count -= bytes;
 		p += bytes;
@@ -1827,9 +1835,6 @@ unsigned int get_random_int(void)
 	__u32 *hash;
 	unsigned int ret;
 
-	if (arch_get_random_int(&ret))
-		return ret;
-
 	hash = get_cpu_var(get_random_int_hash);
 
 	hash[0] += current->pid + jiffies + random_get_entropy();
@@ -1848,9 +1853,6 @@ unsigned long get_random_long(void)
 {
 	__u32 *hash;
 	unsigned long ret;
-
-	if (arch_get_random_long(&ret))
-		return ret;
 
 	hash = get_cpu_var(get_random_int_hash);
 
