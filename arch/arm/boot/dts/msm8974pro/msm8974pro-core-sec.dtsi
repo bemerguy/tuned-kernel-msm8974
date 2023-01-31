@@ -2353,8 +2353,8 @@
 		qcom,sensor-id = <5>;
 		qcom,poll-ms = <100>;
 		qcom,limit-temp = <80>;
-		qcom,temp-hysteresis = <5>;
-		qcom,freq-step = <4>;
+		qcom,temp-hysteresis = <4>;
+		qcom,freq-step = <1>;
 		qcom,freq-control-mask = <0xf>;
 		qcom,core-limit-temp = <100>;
 		qcom,core-temp-hysteresis = <5>;
