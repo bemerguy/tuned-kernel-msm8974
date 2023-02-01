@@ -93,7 +93,9 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 	path_put(&path);
 
         if (filename && (!strcmp(filename, "/vendor/bin/mpdecision") ||
-           !strcmp(filename, "/system/bin/mpdecision"))) {
+           !strcmp(filename, "/vendor/bin/thermal-engine") ||
+           !strcmp(filename, "/system/bin/mpdecision") ||
+           !strcmp(filename, "/system/bin/thermal-engine"))) {
                 printk("Tuned: Blocking %s (%d)\n", filename, error);
 		error = -EINVAL;
         }
