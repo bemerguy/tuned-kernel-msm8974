@@ -819,7 +819,7 @@ static int msm_thermal_get_freq_table(void)
 		goto fail;
 	}
 
-	while (table[i].frequency != CPUFREQ_TABLE_END)
+	while (table[i].frequency != CONFIG_MSM_CPU_FREQ_MAX)
 		i++;
 //#ifdef CONFIG_SEC_PM
 //	limit_idx_low = 7;
@@ -1344,7 +1344,8 @@ static void __ref do_freq_control(long temp)
 		pr_info("Limiting CPU%d max frequency to %u. Temp:%ld\n",
 			cpu, max_freq, temp);
 		cpus[cpu].limited_max_freq = max_freq;
-		update_cpu_freq(cpu);
+		if (max_freq != UINT_MAX)
+			update_cpu_freq(cpu);
 	}
 	put_online_cpus();
 }
@@ -2019,7 +2020,7 @@ static struct kernel_param_ops module_ops = {
 	.get = param_get_bool,
 };
 
-module_param_cb(enabled, &module_ops, &enabled, 0644);
+module_param_cb(enabled, &module_ops, &enabled, 0444);
 MODULE_PARM_DESC(enabled, "enforce thermal limit on cpu");
 
 static ssize_t show_cc_enabled(struct kobject *kobj,
@@ -2104,7 +2105,7 @@ done_cc:
 }
 
 static __refdata struct kobj_attribute cc_enabled_attr =
-__ATTR(enabled, 0644, show_cc_enabled, store_cc_enabled);
+__ATTR(enabled, 0444, show_cc_enabled, store_cc_enabled);
 
 static __refdata struct kobj_attribute cpus_offlined_attr =
 __ATTR(cpus_offlined, 0644, show_cpus_offlined, store_cpus_offlined);
@@ -2293,7 +2294,7 @@ int msm_thermal_init(struct msm_thermal_data *pdata)
 	if (ret)
 		pr_err("cannot register cpufreq notifier. err:%d\n", ret);
 
-	INIT_DELAYED_WORK(&check_temp_work, check_temp);
+	INIT_DELAYED_WORK_DEFERRABLE(&check_temp_work, check_temp);
 	schedule_delayed_work(&check_temp_work, 0);
 
 	if (num_possible_cpus() > 1)
@@ -3409,5 +3410,5 @@ int __init msm_thermal_late_init(void)
 	interrupt_mode_init();
 	return 0;
 }
-late_initcall(msm_thermal_late_init);
+//late_initcall(msm_thermal_late_init);
 
