@@ -72,11 +72,11 @@ static struct mutex gov_lock;
 static unsigned int hispeed_freq = 1267200;
 
 /* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 100
+#define DEFAULT_GO_HISPEED_LOAD 99
 static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 
 /* Sampling down factor to be applied to min_sample_time at max freq */
-static unsigned int sampling_down_factor = 100000;
+static unsigned int sampling_down_factor;
 
 /* Target load.  Lower values result in higher CPU speeds. */
 //#define DEFAULT_TARGET_LOAD 90
@@ -88,13 +88,13 @@ static int ntarget_loads = ARRAY_SIZE(default_target_loads);
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  */
-#define DEFAULT_MIN_SAMPLE_TIME (40 * USEC_PER_MSEC)
+#define DEFAULT_MIN_SAMPLE_TIME (10 * USEC_PER_MSEC)
 static unsigned long min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
 
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE (10 * USEC_PER_MSEC)
+#define DEFAULT_TIMER_RATE (5 * USEC_PER_MSEC)
 static unsigned long timer_rate = DEFAULT_TIMER_RATE;
 
 /* Busy SDF parameters*/
@@ -115,7 +115,7 @@ static int boost_val;
 /* Duration of a boot pulse in usecs */
 static int boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
 /* End time of boost pulse in ktime converted to usecs */
-u64 boostpulse_endtime;
+static u64 boostpulse_endtime;
 
 /*
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
@@ -199,6 +199,7 @@ static unsigned int up_threshold_any_cpu_freq;
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
 
+#define DYN_DEFER (1)
 #ifdef CONFIG_TUNED_PLUG
 extern bool displayon;
 #endif
@@ -236,6 +237,22 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 	return jiffies_to_usecs(idle_time);
 }
 
+#ifdef DYN_DEFER
+static inline void timer_set_nondeferrable(struct timer_list *timer)
+{
+       timer->base =
+               ((struct tvec_base *)((unsigned long)timer->base &
+                       ~TBASE_DEFERRABLE_FLAG));
+}
+
+static inline void timer_set_deferrable(struct timer_list *timer)
+{
+       timer->base =
+               ((struct tvec_base *)((unsigned long)timer->base |
+                       TBASE_DEFERRABLE_FLAG));
+}
+#endif
+
 static inline cputime64_t get_cpu_idle_time(unsigned int cpu,
 					    cputime64_t *wall)
 {
@@ -265,9 +282,15 @@ static void cpufreq_interactive_timer_resched(
        if (displayon)
 		expires = jiffies + usecs_to_jiffies(timer_rate);
        else
-               expires = jiffies + usecs_to_jiffies(timer_rate*10);
+		expires = jiffies + usecs_to_jiffies(timer_rate*10);
 #else
        expires = jiffies + usecs_to_jiffies(timer_rate);
+#endif
+#ifdef DYN_DEFER
+       if (pcpu->target_freq > pcpu->policy->min)
+               timer_set_nondeferrable(&pcpu->cpu_timer);
+       else
+               timer_set_deferrable(&pcpu->cpu_timer);
 #endif
 
 	mod_timer_pinned(&pcpu->cpu_timer, expires);
@@ -684,7 +707,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 #else
 	if (cpu_load >= go_hispeed_load || boosted) {
 #endif
-		if (pcpu->target_freq < hispeed_freq) {
+		if (pcpu->policy->cur < hispeed_freq) {
 			new_freq = hispeed_freq;
 		} else {
 			new_freq = choose_freq(pcpu, loadadjfreq);
