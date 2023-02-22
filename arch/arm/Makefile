@@ -10,6 +10,8 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
+subdir-ccflags-y += -O3
+
 # Ensure linker flags are correct
 LDFLAGS		:=
 

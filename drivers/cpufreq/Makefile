@@ -1,4 +1,5 @@
-ccflags-y += -O3
+subdir-ccflags-y += -O3
+
 # CPUfreq core
 obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o cpu-boost.o
 # CPUfreq stats

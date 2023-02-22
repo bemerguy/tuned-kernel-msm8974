@@ -594,8 +594,8 @@ EXTRA		+= -fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-consta
                 --param=max-tail-merge-iterations=20000 --param=max-cse-path-length=40000 --param=max-vartrack-size=0 \
                 --param=max-cse-insns=40000 --param=max-cselib-memory-locations=500000 --param=max-reload-search-insns=500000 \
                 --param=max-modulo-backtrack-attempts=500000 --param=max-hoist-depth=0 --param=max-pending-list-length=10000 \
-                --param=max-delay-slot-live-search=10000 --param=max-delay-slot-insn-search=10000 --param=inline-min-speedup=5
-KBUILD_CFLAGS	+= -O2 -mfpu=neon-vfpv4 -ffast-math -finline-functions -funroll-loops $(EXTRA)
+                --param=max-delay-slot-live-search=10000 --param=max-delay-slot-insn-search=10000
+KBUILD_CFLAGS	+= -Os -mfpu=neon-vfpv4 -ffast-math -finline-functions -funroll-loops $(EXTRA)
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
@@ -629,7 +629,7 @@ KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
 
 ifdef CONFIG_FRAME_POINTER
-#KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
 # pointers.  For those, we don't have FUNCTION_TRACER automatically
