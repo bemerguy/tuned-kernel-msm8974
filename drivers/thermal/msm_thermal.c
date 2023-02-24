@@ -2294,7 +2294,7 @@ int msm_thermal_init(struct msm_thermal_data *pdata)
 	if (ret)
 		pr_err("cannot register cpufreq notifier. err:%d\n", ret);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&check_temp_work, check_temp);
+	INIT_DELAYED_WORK(&check_temp_work, check_temp);
 	schedule_delayed_work(&check_temp_work, 0);
 
 	if (num_possible_cpus() > 1)
