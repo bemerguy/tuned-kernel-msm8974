@@ -34,7 +34,7 @@ struct sg_io_hdr;
 struct bsg_job;
 
 #define BLKDEV_MIN_RQ	4
-#define BLKDEV_MAX_RQ	128	/* Default maximum */
+#define BLKDEV_MAX_RQ	256	/* Default maximum */
 
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
@@ -518,6 +518,12 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
 #define blk_queue_fast(q)	test_bit(QUEUE_FLAG_FAST, &(q)->queue_flags)
+
+#define blk_queue_nomerges(q)   false
+#define blk_queue_noxmerges(q)  true
+#define blk_queue_nonrot(q)     true
+#define blk_queue_io_stat(q)    false
+#define blk_queue_add_random(q) true
 
 #define blk_noretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
