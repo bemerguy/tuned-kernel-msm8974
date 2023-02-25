@@ -31,19 +31,20 @@ module_param(tunedplug_active, uint, 0644);
 #define MAX_SAMPLING	HZ	//1000ms
 
 /* frequency threshold to wake one more cpu */
+//this should be higher than the default governor highfreq
 #define PMAX 1267200
 
 /* up threshold. lower means more delay */
-static const int u[] = { -60, -40, -1 };
+static const int u[] = { -0.2*HZ, -0.13*HZ, -0.0034*HZ };
 
 /* down threshold. higher means more delay */
-static const int d[] = { 40, 70, 120 };
 
+static const int d[] = { 0.13*HZ, 0.23*HZ, 0.4*HZ };
 
 static const unsigned long max_sampling = MAX_SAMPLING;
-static unsigned long sampling_time __read_mostly = DEF_SAMPLING;
+static unsigned long sampling_time = DEF_SAMPLING;
 
-bool displayon __read_mostly = true;
+bool displayon = true;
 
 static int down[NR_CPUS-1] = {0};
 /* 123 are cpu cores. */
@@ -56,7 +57,7 @@ static void inline down_one(void){
                                 cpu_down(i);
                                 pr_info("tunedplug: DOWN cpu %d. (%d > %d)\n",
 					i, down[i], d[i-1]);
-                                down[i]=10;
+                                down[i]=u[2]*10;
 				return;
                 	}
                 	else down[i]++;
@@ -75,13 +76,13 @@ static void inline up_one(void){
 
                                 cpu_up(i);
 
-                                if (cpufreq_get_policy(&policy, i) != 0) {
+                                if (unlikely(cpufreq_get_policy(&policy, i) != 0)) {
                                         pr_info("tunedplug: no policy for cpu %d ?", i);
 					down[i]=600; //stay a good time without trying to up
 				}
                                 else {
                                         __cpufreq_driver_target(p, p->max, CPUFREQ_RELATION_H);
-					down[i]=-80; //a bit more than u[0] to stay up longer
+					down[i]=u[0]*-2; //a bit more than u[0] to stay up longer
 				}
                         }
                         else down[i]--;
