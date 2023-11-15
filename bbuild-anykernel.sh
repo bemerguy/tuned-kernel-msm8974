@@ -9,11 +9,15 @@
 #######################################
 # Parameters to be configured manually
 #######################################
-VAR="$2"
-
-BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d%H%M")-$VAR"
+#we use a gcc toolchain for armv7 (32bit) targets.
 
 TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
+
+#######################################
+#do not change anything below this if you dont know what youre doing
+VAR="$1"
+
+BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d%H%M")-$VAR"
 
 COMPILER_FLAGS_KERNEL="-Wno-maybe-uninitialized -Wno-array-bounds"
 COMPILER_FLAGS_MODULE="-Wno-maybe-uninitialized -Wno-array-bounds"
@@ -28,10 +32,6 @@ DEFCONFIG="lineage_klte_pn547_defconfig"
 KERNEL_NAME="Boeffla-Kernel"
 
 NUM_CPUS=""   # number of cpu cores used for build (leave empty for auto detection)
-
-#######################################
-# automatic parameters, do not touch !
-#######################################
 
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[1;32m"
@@ -300,59 +300,16 @@ step5_create_anykernel_zip()
 # main function
 ################
 
-unset CCACHE_DISABLE
+if [ "$#" -eq 0 ]; then
+    echo "Error: bbuild-anykernel.sh must be called with at least one argument." >&2
+    echo "Try any of these: klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr" >&2
+    exit 1
+fi
 
-case "$1" in
-	rel)
-		export CCACHE_DISABLE=1
-		step0_copy_code
-		step2_make_config
-		step3_compile
-		step4_prepare_anykernel
-		step5_create_anykernel_zip
-		;;
-	a)
-		step0_copy_code
-		step2_make_config
-		step3_compile
-		step4_prepare_anykernel
-		step5_create_anykernel_zip
-		;;
-	u)
-		step3_compile
-		step4_prepare_anykernel
-		step5_create_anykernel_zip
-		;;
-	0)
-		step0_copy_code
-		;;
-	1)
-		;;
-	2)
-		step2_make_config
-		;;
-	3)
-		step3_compile
-		;;
-	4)
-		step4_prepare_anykernel
-		;;
-	5)
-		step5_create_anykernel_zip
-		;;
-	6)
-		# do nothing
-		;;
-	7)
-		;;
-	8)
-		step8_transfer_kernel
-		;;
-	9)
-		step9_send_finished_mail
-		;;
+step0_copy_code
+step2_make_config
+step3_compile
+step4_prepare_anykernel
+step5_create_anykernel_zip
 
-	*)
-		display_help
-		;;
-esac
+echo "Done. Check DIST folder"
