@@ -32,7 +32,7 @@
 
 /* rework by fbs (heiler.bemerguy@gmail.com) 2018/2019
  * let's do it in a timely fashion with freezable timer instead of using kernel
- * shrink functions, and killing up to 16 process at a time
+ * shrink functions, and killing up to 32 process at a time
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -79,7 +79,7 @@ extern bool displayon;
 
 static int lowmem_shrink(void)
 {
-	struct task_struct *tsk, *tokill[16], *p;
+	struct task_struct *tsk, *tokill[32], *p;
 	unsigned long rem = 0;
 	int i;
 	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
@@ -135,7 +135,7 @@ static int lowmem_shrink(void)
 			continue;
 
 
-		if ((oom_score >= min_score_adj) && (tki < 16)) {
+		if ((oom_score >= min_score_adj) && (tki < 32)) {
 				tki++;
 				tokill[tki] = p;
 		}
@@ -189,8 +189,10 @@ static void timelylmk(struct work_struct *work)
 	if (displayon)
 		queue_delayed_work(system_nrt_freezable_wq, dwork, HZ*2);
 	else
-#endif
 		queue_delayed_work(system_nrt_freezable_wq, dwork, HZ*10);
+#else
+	queue_delayed_work(system_nrt_freezable_wq, dwork, HZ*2);
+#endif
 }
 
 static int __init lowmem_init(void)
