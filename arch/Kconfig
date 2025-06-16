@@ -419,5 +419,24 @@ config CC_STACKPROTECTOR_STRONG
 
 endchoice
 
+config LTO
+    bool "Link Time Optimization support"
+    help
+      Enables the use of Link Time Optimization (LTO) during the kernel build.
+
+config LTO_CLANG
+    bool "Enable Clang LTO (Full)"
+    depends on LTO
+    help
+      Enables full Link Time Optimization using Clang/LLVM.
+
+      This performs whole-program optimization at link time.
+      Requires LLVM >= 12 and ld.lld as linker.
+
+      ThinLTO is not supported in this kernel version.
+
+      WARNING: This is experimental and may break the build.
+
+      Use at your own risk.
 
 source "kernel/gcov/Kconfig"

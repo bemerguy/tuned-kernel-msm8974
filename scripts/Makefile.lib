@@ -260,6 +260,11 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 # ---------------------------------------------------------------------------
 DTC_FLAGS += -Wno-interrupt_provider
 
+ifdef CONFIG_LTO_CLANG
+  ccflags-y += -flto
+  aflags-y += -flto
+endif
+
 # Disable noisy checks by default
 ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
 DTC_FLAGS += -Wno-unit_address_vs_reg \
