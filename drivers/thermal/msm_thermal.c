@@ -1344,7 +1344,7 @@ static void __ref do_freq_control(long temp)
 		pr_info("Limiting CPU%d max frequency to %u. Temp:%ld\n",
 			cpu, max_freq, temp);
 		cpus[cpu].limited_max_freq = max_freq;
-		if (max_freq != UINT_MAX)
+//		if (max_freq != UINT_MAX)
 			update_cpu_freq(cpu);
 	}
 	put_online_cpus();
@@ -1373,10 +1373,10 @@ static void __ref check_temp(struct work_struct *work)
 			limit_init = 1;
 	}
 
-	do_core_control(temp);
+/*	do_core_control(temp);
 	do_vdd_restriction();
 	do_psm();
-	do_ocr();
+	do_ocr();*/
 	do_freq_control(temp);
 
 reschedule:
@@ -3411,4 +3411,3 @@ int __init msm_thermal_late_init(void)
 	return 0;
 }
 //late_initcall(msm_thermal_late_init);
-
