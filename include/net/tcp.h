@@ -212,7 +212,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
 
 /* TCP initial congestion window as per draft-hkchu-tcpm-initcwnd-01 */
-#define TCP_INIT_CWND		10
+#define TCP_INIT_CWND		20
 
 extern struct inet_timewait_death_row tcp_death_row;
 
