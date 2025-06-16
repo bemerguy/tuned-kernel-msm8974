@@ -4376,7 +4376,9 @@ static struct task_struct *find_process_by_pid(pid_t pid)
 static void
 __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 {
-	p->policy = policy;
+
+        /* Replace SCHED_FIFO with SCHED_RR to reduce latency */
+        p->policy = policy == SCHED_FIFO ? SCHED_RR : policy;
 	p->rt_priority = prio;
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
@@ -6289,7 +6291,7 @@ static const struct cpumask *cpu_cpu_mask(int cpu)
 	return cpumask_of_node(cpu_to_node(cpu));
 }
 
-int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
+int sched_smt_power_savings = 0, sched_mc_power_savings = 1;
 
 struct sd_data {
 	struct sched_domain **__percpu sd;
