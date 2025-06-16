@@ -1,7 +1,7 @@
 #
 # Makefile for the linux kernel.
 #
-subdir-ccflags-y += -O3
+subdir-ccflags-y += $(BOPTS)
 
 obj-y     = fork.o exec_domain.o panic.o printk.o \
 	    cpu.o exit.o itimer.o time.o softirq.o resource.o \
