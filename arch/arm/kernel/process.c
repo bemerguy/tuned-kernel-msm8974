@@ -676,8 +676,8 @@ unsigned long get_wchan(struct task_struct *p)
 	stack_page = (unsigned long)task_stack_page(p);
 	do {
 		if (frame.sp < stack_page ||
-		    frame.sp >= stack_page + THREAD_SIZE ||
-		    unwind_frame(&frame) < 0)
+		    frame.sp >= stack_page + THREAD_SIZE/* ||
+		    unwind_frame(&frame) < 0 */ )
 			return 0;
 		if (!in_sched_functions(frame.pc))
 			return frame.pc;

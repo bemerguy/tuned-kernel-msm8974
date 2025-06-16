@@ -47,11 +47,11 @@ void notrace walk_stackframe(struct stackframe *frame,
 		     int (*fn)(struct stackframe *, void *), void *data)
 {
 	while (1) {
-		int ret;
+		int ret = -1;
 
 		if (fn(frame, data))
 			break;
-		ret = unwind_frame(frame);
+		//ret = unwind_frame(frame);
 		if (ret < 0)
 			break;
 	}
