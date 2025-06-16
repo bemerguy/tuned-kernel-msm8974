@@ -537,20 +537,23 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 * pending fatal signal.
 	 */
 	rcu_read_lock();
-	for_each_process(p)
-		if (!process_shares_mm(p, mm) && !same_thread_group(p, victim) &&
-		    !(p->flags & PF_KTHREAD)) {
-			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-				continue;
-			if (fatal_signal_pending(p))
-				continue;
-
-			task_lock(p);	/* Protect ->comm from prctl() */
-			pr_info("Kill process %d (%s) sharing same memory\n",
-				task_pid_nr(p), p->comm);
-			task_unlock(p);
-			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-		}
+	for_each_process(p) {
+                if (!process_shares_mm(p, mm))
+                        continue;
+                if (same_thread_group(p, victim))
+                        continue;
+		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+			continue;
+		if (fatal_signal_pending(p))
+			continue;
+                if (unlikely(p->flags & PF_KTHREAD))
+                        continue;
+		task_lock(p);	/* Protect ->comm from prctl() */
+		pr_info("Kill process %d (%s) sharing same memory\n",
+			task_pid_nr(p), p->comm);
+		task_unlock(p);
+		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+	}
 	rcu_read_unlock();
 
 	set_tsk_thread_flag(victim, TIF_MEMDIE);
