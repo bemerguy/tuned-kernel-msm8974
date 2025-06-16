@@ -10,12 +10,12 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
-subdir-ccflags-y += -O3
+subdir-ccflags-y += $(BOPTS)
 
 # Ensure linker flags are correct
-LDFLAGS		:=
+LDFLAGS		:= -m armelf_linux_eabi
 
-LDFLAGS_vmlinux	:=-p --no-undefined -X
+LDFLAGS_vmlinux	:= --no-undefined -X -O2
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
 endif
@@ -58,7 +58,7 @@ comma = ,
 # char struct members incorrectly. So disable it.
 # (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65932)
 #
-KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
+#KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
 
 # This selects which instruction set is used.
 # Note that GCC does not numerically define an architecture version
@@ -86,7 +86,7 @@ arch-$(CONFIG_CPU_32v3)		:=-D__LINUX_ARM_ARCH__=3 -march=armv3
 # keep things simpler, we don't bother with a fallback option if the compiler
 # doesn't even support -march=armv7-a, since in that situation we would have
 # bigger problems.
-arch-$(CONFIG_ARCH_MSM_KRAIT)	:=-D__LINUX_ARM_ARCH__=7 $(call cc-option,-mcpu=cortex-a15,-march=armv7-a)
+arch-$(CONFIG_ARCH_MSM_KRAIT)	:=-D__LINUX_ARM_ARCH__=7 $(call cc-option,-mcpu=cortex-a15 -mfpu=neon-vfpv4,-march=armv7-a)
 arch-$(CONFIG_MSM_CORTEX_A7)	:=-D__LINUX_ARM_ARCH__=7 $(call cc-option,-mcpu=cortex-a15,-march=armv7-a)
 
 # This selects how we optimise for the processor.
@@ -112,7 +112,7 @@ tune-$(CONFIG_CPU_V6)		:=$(call cc-option,-mtune=arm1136j-s,-mtune=strongarm)
 tune-$(CONFIG_CPU_V6K)		:=$(call cc-option,-mtune=arm1136j-s,-mtune=strongarm)
 
 ifeq ($(CONFIG_AEABI),y)
-CFLAGS_ABI	:=-mabi=aapcs-linux -mno-thumb-interwork
+CFLAGS_ABI	:=-mabi=aapcs-linux $(call cc-option,-mno-thumb-interwork,)
 else
 CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu) $(call cc-option,-mno-thumb-interwork,)
 endif
