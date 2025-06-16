@@ -1,7 +1,7 @@
 #
 # Arch-specific CryptoAPI modules.
 #
-ccflags-y += -O3
+ccflags-y += $(BOPTS)
 #Keep this at the top
 obj-$(CONFIG_CRYPTO_FIPS) += first_file_asm.o
 
