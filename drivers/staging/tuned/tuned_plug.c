@@ -27,65 +27,62 @@ static struct notifier_block lcd_notif;
 unsigned int tunedplug_active __read_mostly = 1;
 module_param(tunedplug_active, uint, 0644);
 
-#define DEF_SAMPLING	HZ/100 	//10ms
-#define MAX_SAMPLING	HZ	//1000ms
+#define DEF_SAMPLING	HZ/50
 
 /* frequency threshold to wake one more cpu */
 //this should be higher than the default governor highfreq
 #define PMAX 1267200
 
+static unsigned long sampling_time = DEF_SAMPLING;
+
 /* up threshold. lower means more delay */
-static const int u[] = { -0.2*HZ, -0.13*HZ, -0.0034*HZ };
+static const int u[] = { -6, -4, -2 };
 
 /* down threshold. higher means more delay */
 
-static const int d[] = { 0.13*HZ, 0.23*HZ, 0.4*HZ };
-
-static const unsigned long max_sampling = MAX_SAMPLING;
-static unsigned long sampling_time = DEF_SAMPLING;
+static const int d[] = { 5, 9, 14 };
 
 bool displayon = true;
 
-static int down[NR_CPUS-1] = {0};
+static int state[NR_CPUS-1] = {0};
 /* 123 are cpu cores. */
 
-static void inline down_one(void){
+static void down_one(void){
         unsigned int i;
 	for_each_online_cpu(i) {
 		if (i) {
-			if (down[i] > d[i-1]) {
+			if (state[i-1] > d[i-1]) {
                                 cpu_down(i);
                                 pr_info("tunedplug: DOWN cpu %d. (%d > %d)\n",
-					i, down[i], d[i-1]);
-                                down[i]=u[2]*10;
+					i, state[i-1], d[i-1]);
+				state[i-1]=d[2];
 				return;
                 	}
-                	else down[i]++;
+                	else state[i-1]++;
 		}
         }
 }
-static void inline up_one(void){
+static void up_one(void){
         unsigned int i;
         for (i = NR_CPUS-1; i > 0; i--) {
                 if (!cpu_online(i)) {
-                        if (down[i] < u[i-1]) {
+                        if (state[i-1] < u[i-1]) {
                                 struct cpufreq_policy policy, *p = &policy;
 
                                 pr_info("tunedplug: UP cpu %d. (%d < %d)\n",
-					i, down[i], u[i-1]);
+					i, state[i-1], u[i-1]);
 
                                 cpu_up(i);
 
                                 if (unlikely(cpufreq_get_policy(&policy, i) != 0)) {
                                         pr_info("tunedplug: no policy for cpu %d ?", i);
-					down[i]=600; //stay a good time without trying to up
 				}
                                 else {
                                         __cpufreq_driver_target(p, p->max, CPUFREQ_RELATION_H);
-					down[i]=u[0]*-2; //a bit more than u[0] to stay up longer
+					state[i-1]=u[0];
 				}
                         }
-                        else down[i]--;
+                        else state[i-1]--;
                         return;
                 }
         }
@@ -102,7 +99,7 @@ static void tunedplug_work_fn(struct work_struct *work)
         if (!tunedplug_active)
                 return;
 
-	if (!displayon && (sampling_time < max_sampling))
+	if (!displayon && (sampling_time < HZ))
 		sampling_time++;
 
 #define TMAXFREQ status[0]
@@ -117,9 +114,10 @@ static void tunedplug_work_fn(struct work_struct *work)
 			else if (i && policy.cur <= policy.min) TLOWFREQ++;
 	}
 
-//	pr_info("ON=%d. LOW=%d. MAX=%d.\n", TONLINE, TLOWFREQ, TMAXFREQ);
+//	pr_info("tunedplug ON=%d. LOW=%d. MAX=%d. cpu1: %d cpu2: %d cpu3: %d\n",
+//		TONLINE, TLOWFREQ, TMAXFREQ, state[0], state[1], state[2]);
 
-	if (TMAXFREQ == TONLINE) up_one();
+	if (TMAXFREQ && TONLINE<NR_CPUS) up_one();
 	else if (TLOWFREQ) down_one();
 
 }
