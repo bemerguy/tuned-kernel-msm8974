@@ -3809,6 +3809,7 @@ static int bfq_init_queue(struct request_queue *q)
 	bfqd->oom_bfqq.entity.ioprio_changed = 1;
 
 	bfqd->queue = q;
+	q->elevator->elevator_data = bfqd;
 
 	bfqg = bfq_alloc_root_group(bfqd, q->node);
 	if (bfqg == NULL) {
@@ -3896,7 +3897,7 @@ static void bfq_registered_queue(struct request_queue *q)
 	 * Default to IOPS mode with no idling for SSDs
 	 */
 	if (blk_queue_nonrot(q))
-		bfqd->bfq_slice_idle = 0;
+		bfqd->bfq_slice_idle = 1;
 }
 
 static void bfq_slab_kill(void)
