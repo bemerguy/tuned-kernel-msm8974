@@ -1,4 +1,4 @@
-subdir-ccflags-y += -O3
+subdir-ccflags-y += $(BOPTS)
 
 ccflags-y := -Iinclude/uapi/drm -Iinclude/drm -Idrivers/gpu/msm
 
