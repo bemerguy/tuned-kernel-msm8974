@@ -1,3 +1,4 @@
+subdir-ccflags-y += $(BOPTS)
 ccflags-y += -I$(src)			# needed for trace events
 
 obj-$(CONFIG_ANDROID_BINDERFS)		+= binderfs.o
