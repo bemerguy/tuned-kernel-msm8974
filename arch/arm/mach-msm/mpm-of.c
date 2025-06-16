@@ -833,7 +833,7 @@ void __init of_mpm_init(struct device_node *node)
 		list = of_get_property(node, mpm_of_map[i].map, &size);
 
 		if (!list || !size) {
-			__WARN();
+//			__WARN();
 			continue;
 		}
 

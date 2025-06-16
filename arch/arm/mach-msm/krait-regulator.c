@@ -1772,7 +1772,7 @@ void secondary_cpu_hs_init(void *base_ptr, int cpu)
 
 			iounmap(l2_saw_base);
 		} else {
-			__WARN();
+//			__WARN();
 		}
 	}
 }

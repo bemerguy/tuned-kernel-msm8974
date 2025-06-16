@@ -87,8 +87,8 @@ static int __devinit msm_pm_tz_boot_init(void)
 	else if (num_possible_cpus() == 4)
 		flag = SCM_FLAG_WARMBOOT_CPU0 | SCM_FLAG_WARMBOOT_CPU1 |
 				SCM_FLAG_WARMBOOT_CPU2 | SCM_FLAG_WARMBOOT_CPU3;
-	else
-		__WARN();
+/*	else
+		__WARN();*/
 
 	return scm_set_boot_addr(virt_to_phys(msm_pm_boot_entry), flag);
 }
@@ -253,7 +253,7 @@ int __devinit msm_pm_boot_init(struct msm_pm_boot_platform_data *pdata)
 		}
 		break;
 	default:
-		__WARN();
+//		__WARN();
 	}
 
 	return ret;
