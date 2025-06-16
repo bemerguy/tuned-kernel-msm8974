@@ -336,7 +336,11 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
+ifneq ($(LLVM),1)
 CC		= $(CROSS_COMPILE)gcc
+else
+CC		= $(CROSS_COMPILE)clang
+endif
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -389,7 +393,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -std=gnu89
+		   -std=gnu89 -pipe
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -413,7 +417,7 @@ export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE CFLAGS_GCOV
 export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
-export KBUILD_ARFLAGS
+export KBUILD_ARFLAGS BOPTS
 
 # When compiling out-of-tree modules, put MODVERDIR in the module
 # tree rather than in the kernel tree. The kernel tree might
@@ -583,20 +587,89 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= $(call cc-option,-Oz,-Os)
-KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
-else
-EXTRA		:= -falign-functions -falign-jumps -falign-labels -falign-loops \
-		-fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-constant \
+ifneq ($(LLVM),1)
+EXTRA		:= -fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-constant \
                 -fgcse-sm -fgcse-las -fipa-pta -ftree-lrs -fgcse-after-reload -fpeel-loops -fpredictive-commoning \
-                -freorder-blocks-algorithm=stc -fira-loop-pressure -fsplit-loops -funswitch-loops \
-                --param=max-tail-merge-comparisons=20000 --param=max-gcse-memory=2147483647 \
-                --param=max-tail-merge-iterations=20000 --param=max-cse-path-length=40000 --param=max-vartrack-size=0 \
-                --param=max-cse-insns=40000 --param=max-cselib-memory-locations=500000 --param=max-reload-search-insns=500000 \
-                --param=max-modulo-backtrack-attempts=500000 --param=max-hoist-depth=0 --param=max-pending-list-length=10000 \
-                --param=max-delay-slot-live-search=10000 --param=max-delay-slot-insn-search=10000 --param=inline-min-speedup=25
-KBUILD_CFLAGS	+= -Os -ffast-math -funroll-loops $(EXTRA)
+                -freorder-blocks-algorithm=stc -fira-loop-pressure -fweb -frename-registers -mno-unaligned-access \
+		-fno-unwind-tables -fno-asynchronous-unwind-tables \
+		-fsched-pressure -fmalloc-dce -fschedule-fusion -fschedule-insns -fsched-spec-load \
+                --param=max-gcse-memory=2147483647 \
+                --param=max-cse-path-length=40000 --param=max-vartrack-size=0 \
+                --param=max-cselib-memory-locations=500000 --param=max-reload-search-insns=500000 \
+                --param=max-modulo-backtrack-attempts=500000 --param=max-hoist-depth=0 \
+		--param=l1-cache-line-size=64 --param=l1-cache-size=16 --param=l2-cache-size=2048
+GCCPAR += --param dse-max-alias-queries-per-store=256000 # 256
+GCCPAR += --param dse-max-object-size=256000 # 256
+GCCPAR += --param graphite-max-arrays-per-scop=100000 # 100
+GCCPAR += --param graphite-max-nb-scop-params=10000 # 10
+GCCPAR += --param ira-max-conflict-table-size=100000 # 1000
+GCCPAR += --param ira-max-loops-num=100000 # 100
+#GCCPAR += --param iv-consider-all-candidates-bound=40000 # 40 chatgpt
+#GCCPAR += --param iv-max-considered-uses=25000 # 1000 chatgpt
+GCCPAR += --param loop-invariant-max-bbs-in-loop=500000 # 100
+GCCPAR += --param loop-max-datarefs-for-datadeps=100000 # 250
+GCCPAR += --param lra-max-considered-reload-pseudos=500000 # 200
+GCCPAR += --param max-crossjump-edges=100000 # 50 chatgpt
+GCCPAR += --param max-cse-insns=100000 # 500 chatgpt
+GCCPAR += --param max-delay-slot-insn-search=500000 # 100
+GCCPAR += --param max-delay-slot-live-search=500000 # 333 ??????
+GCCPAR += --param max-dse-active-local-stores=500000 # 5000
+GCCPAR += --param max-iterations-computation-cost=500000 # 10
+GCCPAR += --param max-iterations-to-track=500000 # 1000
+GCCPAR += --param max-last-value-rtl=500000 # 10000
+GCCPAR += --param max-pending-list-length=125000 # 32
+GCCPAR += --param max-pipeline-region-blocks=6250 # 15
+GCCPAR += --param max-pipeline-region-insns=6250 # 200
+GCCPAR += --param max-sched-region-blocks=50 # 10. 50 is TOO MUCH RAM
+GCCPAR += --param max-sched-region-insns=100000 # 100
+#GCCPAR += --param max-slsr-cand-scan=999999 # 50 chatgpt
+GCCPAR += --param max-ssa-name-query-depth=10 # 3
+GCCPAR += --param max-stores-to-merge=65536 #64 chatgpt
+
+GCCPAR += --param max-store-chains-to-track=65536 #64
+GCCPAR += --param max-stores-to-track=1048576 #1024
+GCCPAR += --param max-tail-merge-comparisons=30000 # 10 chatgpt
+GCCPAR += --param max-tail-merge-iterations=100 # 2 chatgpt
+#GCCPAR += --param max-tree-if-conversion-phi-args=256 # 4 
+GCCPAR += --param sccvn-max-alias-queries-per-access=500000 # 1000
+GCCPAR += --param scev-max-expr-complexity=500000 # 10
+GCCPAR += --param scev-max-expr-size=500000 # 100
+GCCPAR += --param selsched-insns-to-rename=2000 # 2 chatgpt
+GCCPAR += --param selsched-max-lookahead=5000 # 50 chatgpt
+GCCPAR += --param selsched-max-sched-times=65536 # 2 chatgpt
+
+GCCPAR += --param early-inlining-insns=2 #10 compiling, 6 for Os
+GCCPAR += --param max-inline-insns-small=2 #insns to be considered small thus automatically inlining
+GCCPAR += --param max-inline-insns-size=2 #max insns to inline when optimized for size
+GCCPAR += --param max-inline-insns-auto=20 #15 Os, 30 Ofast. max insns to even consider. CRASH
+GCCPAR += --param max-inline-insns-single=70 #70 Os, 200 Ofast. but when the code explicity says to inline
+GCCPAR += --param inline-min-speedup=30 #30% Os, 15% Ofast. ignore 2 above if this % of speedup is calculated
+
+GCCPAR += --param inline-unit-growth=30 #40%. huge difference. % to grow a large unit
+GCCPAR += --param ipa-cp-unit-growth=20 #10%
+
+GCCPAR += --param min-crossjump-insns=10 #1 Os, 5 Ofast
+GCCPAR += --param inline-heuristics-hint-percent=200 #200% Os, 600% OFast. when VERY profitable
+
+GCCPAR += --param large-function-insns=800 #what is a large function? 2700. n muda mt?
+GCCPAR += --param large-function-growth=20 #100%. % to grow large functions? compiling. matters too much
+GCCPAR += --param large-stack-frame-growth=800 #1000% compiling
+KBUILD_CFLAGS	+= -Os $(EXTRA) $(GCCPAR)
+BOPTS += -O3 -fgraphite -fgraphite-identity --param inline-min-speedup=20 \
+	--param large-function-growth=50 -falign-labels=8 -falign-functions=32 \
+	-falign-loops=32 -falign-jumps=8 -funroll-loops
+else
+CLANG_FLAGS += --target=armv7a-linux-gnueabihf
+CLANG_FLAGS     += $(call cc-option, -Wno-misleading-indentation)
+CLANG_FLAGS     += $(call cc-option, -Wno-bool-operation)
+CLANG_FLAGS     += -Werror=unknown-warning-option
+CLANG_FLAGS     += $(call cc-option, -Wno-unsequenced)
+CLANG_FLAGS     += $(call cc-option, -Wno-default-const-init-field-unsafe)
+KBUILD_CFLAGS   += $(CLANG_FLAGS)
+KBUILD_AFLAGS   += $(CLANG_FLAGS)
+export CLANG_FLAGS
+KBUILD_CFLAGS   += -Os
+BOPTS += -O3
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
@@ -682,7 +755,7 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 
 # conserve stack if available
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
+#KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # disallow errors like 'EXPORT_GPL(foo);' with missing header
 KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)
@@ -711,6 +784,13 @@ LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
+
+ifdef CONFIG_LTO_CLANG
+KBUILD_CFLAGS   += -flto
+KBUILD_AFLAGS   += -flto
+KBUILD_LDFLAGS  += -flto
+KBUILD_LDFLAGS  += -fuse-ld=lld
 endif
 
 # Default kernel image to build when no specific target is given.
