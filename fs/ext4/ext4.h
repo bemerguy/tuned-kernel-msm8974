@@ -194,7 +194,7 @@ struct ext4_io_page {
 	atomic_t	p_count;
 };
 
-#define MAX_IO_PAGES 128
+#define MAX_IO_PAGES 256
 
 /*
  * For converting uninitialized extents on a work queue.
