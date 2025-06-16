@@ -42,7 +42,7 @@
 /*
  * Sleep at most 200ms at a time in balance_dirty_pages().
  */
-#define MAX_PAUSE		max(HZ/5, 1)
+#define MAX_PAUSE		max(HZ/4, 1)
 
 /*
  * Try to keep balance_dirty_pages() call intervals higher than this many pages
@@ -53,7 +53,7 @@
 /*
  * Estimate write bandwidth at 200ms intervals.
  */
-#define BANDWIDTH_INTERVAL	max(HZ/5, 1)
+#define BANDWIDTH_INTERVAL	max(HZ/4, 1)
 
 #define RATELIMIT_CALC_SHIFT	10
 
@@ -91,7 +91,7 @@ int vm_dirty_ratio = 0;
  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
  * vm_dirty_ratio * the amount of dirtyable memory
  */
-unsigned long vm_dirty_bytes = 1073741824;
+unsigned long vm_dirty_bytes = 1048576*10;
 
 /*
  * The interval between `kupdate'-style writebacks
