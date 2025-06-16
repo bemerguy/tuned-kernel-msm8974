@@ -33,7 +33,7 @@
 #include <linux/suspend.h>
 
 #define MAX_LONG_SIZE 24
-#define DEFAULT_RQ_POLL_JIFFIES 2
+#define DEFAULT_RQ_POLL_JIFFIES 4
 #define DEFAULT_DEF_TIMER_JIFFIES 15
 
 struct notifier_block freq_transition;
