@@ -11,16 +11,21 @@
 #######################################
 #we use a gcc toolchain for armv7 (32bit) targets.
 
-TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
+#TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
+TOOLCHAIN="/home/me/x-tools/arm-eabi/bin/arm-eabi-"
+TOOLCHAIN="/home/me/x-tools/arm-unknown-linux-gnueabihf/bin/arm-unknown-linux-gnueabihf-"
+export LLVM=1
+if [ "$LLVM" = "1" ]; then
+TOOLCHAIN="/usr/lib/llvm-21/bin/"
+fi
+
+export ARCH=arm
 
 #######################################
 #do not change anything below this if you dont know what youre doing
 VAR="$1"
 
 BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d%H%M")-$VAR"
-
-COMPILER_FLAGS_KERNEL="-Wno-maybe-uninitialized -Wno-array-bounds"
-COMPILER_FLAGS_MODULE="-Wno-maybe-uninitialized -Wno-array-bounds"
 
 COMPILE_DTB="y"
 DTBTOOL="dtbToolCM"
@@ -31,7 +36,7 @@ DEFCONFIG="lineage_klte_pn547_defconfig"
 
 KERNEL_NAME="Boeffla-Kernel"
 
-NUM_CPUS=""   # number of cpu cores used for build (leave empty for auto detection)
+NUM_CPUS="1"   # number of cpu cores used for build (leave empty for auto detection)
 
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[1;32m"
@@ -61,15 +66,9 @@ step2_make_config()
 	echo -e $COLOR_GREEN"\n2 - make config\n"$COLOR_NEUTRAL
 	echo
 
-	# build make string depending on if we need to compile to an output folder
-	# and if we need to have a defconfig variant
-	MAKESTRING="ARCH=arm oldconfig"
-
-	if [ ! -z "out" ]; then
-		mkdir -p out
-		MAKESTRING="O=out $MAKESTRING"
-	        cp arch/arm/configs/$DEFCONFIG out/.config
-	fi
+	mkdir -p out
+	MAKESTRING="O=out ARCH=arm oldconfig"
+        cp arch/arm/configs/$DEFCONFIG out/.config
 
 case "$VAR" in
         klte)
@@ -236,7 +235,7 @@ step3_compile()
 	rm anykernel_boeffla/zImage &>/dev/null
 	rm anykernel_boeffla/dt &>/dev/null
 
-	make -j$NUM_CPUS O=out CFLAGS_KERNEL="$COMPILER_FLAGS_KERNEL" CFLAGS_MODULE="$COMPILER_FLAGS_MODULE" CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
+	make V=1 -j$NUM_CPUS O=out CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
 
        # if kernel image does not exist, exit processing
        if [ ! -e out/arch/arm/boot/zImage ]; then
@@ -293,6 +292,36 @@ step5_create_anykernel_zip()
 	rm ../dist/$BOEFFLA_FILENAME.zip &>/dev/null
 	zip -r9 ../dist/$BOEFFLA_FILENAME.zip *
 
+if [[ "$(ps -o comm= -p $PPID 2>/dev/null)" =~ (bash|zsh|sh) ]]; then
+        while true; do
+                adb start-server >/dev/null 2>&1
+                STATE=$(adb get-state 2>&1)
+
+                if [[ $STATE == "device" ]]; then
+                        MODE=$(adb shell getprop sys.boot_completed 2>/dev/null)
+
+                        if [[ $MODE -eq 1 ]]; then
+                                echo -e "\a"
+                                echo "Device is connected but not in recovery mode."
+                                read -p "Press Enter to reboot to recovery mode..."
+                                adb reboot recovery
+                                echo "Rebooting to recovery mode..."
+                                REBOOT=1
+                        fi
+                elif [[ $STATE == "recovery" ]]; then
+                        echo "Device is in recovery mode."
+                        break
+                else
+                        echo "No devices or emulators found. Retrying in 5 seconds..."
+                        if [[ $REBOOT -ne 1 ]]; then
+                                echo -e "\a"
+                        fi
+                        sleep 5
+                fi
+        done
+
+        adb push ../dist/$BOEFFLA_FILENAME.zip /external_sd/
+fi
 }
 
 
@@ -312,4 +341,4 @@ step3_compile
 step4_prepare_anykernel
 step5_create_anykernel_zip
 
-echo "Done. Check DIST folder"
+echo "Done. Check 'dist' folder"
