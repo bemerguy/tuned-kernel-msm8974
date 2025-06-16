@@ -2,7 +2,7 @@
 # Cryptographic API
 #
 
-subdir-ccflags-y += -O3
+subdir-ccflags-y += $(BOPTS)
 
 #Keep this on the top
 obj-$(CONFIG_CRYPTO_FIPS) += first_file.o
