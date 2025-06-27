@@ -372,7 +372,6 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	PN(sysctl_sched_min_granularity);
 	PN(sysctl_sched_wakeup_granularity);
 	P(sysctl_sched_child_runs_first);
-	P(sysctl_sched_features);
 #undef PN
 #undef P
 

@@ -598,44 +598,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 # define const_debug const
 #endif
 
-extern const_debug unsigned int sysctl_sched_features;
-
-#define SCHED_FEAT(name, enabled)	\
-	__SCHED_FEAT_##name ,
-
-enum {
 #include "features.h"
-	__SCHED_FEAT_NR,
-};
-
-#undef SCHED_FEAT
-
-#if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
-static __always_inline bool static_branch__true(struct static_key *key)
-{
-	return static_key_true(key); /* Not out of line branch. */
-}
-
-static __always_inline bool static_branch__false(struct static_key *key)
-{
-	return static_key_false(key); /* Out of line branch. */
-}
-
-#define SCHED_FEAT(name, enabled)					\
-static __always_inline bool static_branch_##name(struct static_key *key) \
-{									\
-	return static_branch__##enabled(key);				\
-}
-
-#include "features.h"
-
-#undef SCHED_FEAT
-
-extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
-#define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
-#else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
-#define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
-#endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
 static inline u64 global_rt_period(void)
 {
