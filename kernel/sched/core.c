@@ -169,7 +169,7 @@ void update_rq_clock(struct rq *rq)
  * Number of tasks to iterate in a single balance run.
  * Limited because this is done with IRQs disabled.
  */
-const_debug unsigned int sysctl_sched_nr_migrate = 32;
+const_debug unsigned int sysctl_sched_nr_migrate = 8;
 
 /*
  * period over which we average the RT time consumption, measured
@@ -4242,9 +4242,7 @@ static struct task_struct *find_process_by_pid(pid_t pid)
 static void
 __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 {
-
-        /* Replace SCHED_FIFO with SCHED_RR to reduce latency */
-        p->policy = policy == SCHED_FIFO ? SCHED_RR : policy;
+	p->policy = policy;
 	p->rt_priority = prio;
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
