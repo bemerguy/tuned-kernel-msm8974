@@ -125,9 +125,12 @@ struct net {
 extern struct net init_net;
 
 #ifdef CONFIG_NET
+#ifdef CONFIG_NET_NS
 extern struct net *copy_net_ns(unsigned long flags,
 		struct user_namespace *user_ns, struct net *net_ns);
-
+#else
+extern struct net *copy_net_ns(unsigned long flags, struct net *net_ns);
+#endif
 #else /* CONFIG_NET */
 static inline struct net *copy_net_ns(unsigned long flags,
 		struct user_namespace *user_ns, struct net *net_ns)
