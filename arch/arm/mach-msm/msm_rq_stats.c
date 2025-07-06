@@ -444,7 +444,7 @@ static int __init msm_rq_stats_init(void)
 	return -ENOSYS;
 #endif
 
-	rq_wq = create_singlethread_workqueue("mpdecision-rqstats");
+	rq_wq = create_singlethread_workqueue("rq_stats");
 	BUG_ON(!rq_wq);
 	INIT_WORK(&rq_info.def_timer_work, def_work_fn);
 	spin_lock_init(&rq_lock);
