@@ -278,9 +278,9 @@ config ARCH_MSM8974
 	select ARM_HAS_SG_CHAIN
 	select MSM_RUN_QUEUE_STATS
 	select MEMORY_HOLE_CARVEOUT
-	select MSM_RPM_STATS_LOG
+# 	select MSM_RPM_STATS_LOG
 	select QMI_ENCDEC
-	select MSM_RPM_LOG
+#	select MSM_RPM_LOG
 	select ARCH_WANT_KMAP_ATOMIC_FLUSH
 	select KRAIT_REGULATOR
 	select ENABLE_VMALLOC_SAVINGS
@@ -3540,7 +3540,7 @@ config MSM_DEVFREQ_CPUBW
 	select DEVFREQ_GOV_PERFORMANCE
 	select DEVFREQ_GOV_POWERSAVE
 	select DEVFREQ_GOV_USERSPACE
-	select DEVFREQ_GOV_MSM_CPUFREQ
+#	select DEVFREQ_GOV_MSM_CPUFREQ
 	default n
 	help
 	  Different devfreq governors use this devfreq device to make CPU to
