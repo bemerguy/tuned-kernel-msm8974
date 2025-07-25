@@ -245,7 +245,7 @@ config RFS_ACCEL
 config XPS
 	boolean
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
-	default y
+	default n
 
 config NETPRIO_CGROUP
 	tristate "Network priority cgroup"
