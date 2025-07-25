@@ -1,20 +1,10 @@
 #!/bin/bash
-
-# Boeffla Kernel Universal Build Script
-#
-# Version 1.3, 11.10.2016
-#
-# (C) Lord Boeffla (aka andip71)
-
-#######################################
-# Parameters to be configured manually
-#######################################
-#we use a gcc toolchain for armv7 (32bit) targets.
-
-#TOOLCHAIN="/root/armv7-eabihf--glibc--bleeding-edge-2022.08-1/bin/arm-buildroot-linux-gnueabihf-"
-TOOLCHAIN="/home/me/x-tools/arm-eabi/bin/arm-eabi-"
+#path to gcc toolchain
 TOOLCHAIN="/home/me/x-tools/arm-unknown-linux-gnueabihf/bin/arm-unknown-linux-gnueabihf-"
-export LLVM=1
+
+#I'm gonna test using clang later
+#export LLVM=1
+
 if [ "$LLVM" = "1" ]; then
 TOOLCHAIN="/usr/lib/llvm-21/bin/"
 fi
@@ -25,18 +15,13 @@ export ARCH=arm
 #do not change anything below this if you dont know what youre doing
 VAR="$1"
 
-BOEFFLA_FILENAME="tuned-kernel-$(date +"%Y%m%d%H%M")-$VAR"
+FILENAME="tuned-$VAR-$(date +"%Y%m%d%H%M")"
 
 COMPILE_DTB="y"
 DTBTOOL="dtbToolCM"
 DTBTOOL_CMD="-2"
-MODULES_IN_SYSTEM="y"
 
 DEFCONFIG="lineage_klte_pn547_defconfig"
-
-KERNEL_NAME="Boeffla-Kernel"
-
-NUM_CPUS="1"   # number of cpu cores used for build (leave empty for auto detection)
 
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[1;32m"
@@ -46,20 +31,12 @@ if [ -z "$NUM_CPUS" ]; then
 	NUM_CPUS=$(($(nproc) - 1))
 fi
 
-# set environment
-export ARCH=arm
 export CROSS_COMPILE="$TOOLCHAIN"
 
 
 #####################
 # internal functions
 #####################
-
-step0_copy_code()
-{
-	echo -e $COLOR_GREEN"\n0 - copy code\n"$COLOR_NEUTRAL
-
-}
 
 step2_make_config()
 {
@@ -235,7 +212,7 @@ step3_compile()
 	rm anykernel_boeffla/zImage &>/dev/null
 	rm anykernel_boeffla/dt &>/dev/null
 
-	make V=1 -j$NUM_CPUS O=out CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
+	make -j$NUM_CPUS O=out CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
 
        # if kernel image does not exist, exit processing
        if [ ! -e out/arch/arm/boot/zImage ]; then
@@ -289,8 +266,8 @@ step5_create_anykernel_zip()
 	# create zip file
 	mkdir -p ../dist
 
-	rm ../dist/$BOEFFLA_FILENAME.zip &>/dev/null
-	zip -r9 ../dist/$BOEFFLA_FILENAME.zip *
+	rm ../dist/$FILENAME.zip &>/dev/null
+	zip -r9 ../dist/$FILENAME.zip *
 
 if [[ "$(ps -o comm= -p $PPID 2>/dev/null)" =~ (bash|zsh|sh) ]]; then
         while true; do
@@ -320,7 +297,7 @@ if [[ "$(ps -o comm= -p $PPID 2>/dev/null)" =~ (bash|zsh|sh) ]]; then
                 fi
         done
 
-        adb push ../dist/$BOEFFLA_FILENAME.zip /external_sd/
+        adb push ../dist/$FILENAME.zip /external_sd/
 fi
 }
 
@@ -335,7 +312,6 @@ if [ "$#" -eq 0 ]; then
     exit 1
 fi
 
-step0_copy_code
 step2_make_config
 step3_compile
 step4_prepare_anykernel
