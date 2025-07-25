@@ -435,10 +435,10 @@ struct request_queue {
 #define QUEUE_FLAG_SANITIZE    19	/* supports SANITIZE */
 #define QUEUE_FLAG_FAST        23	/* fast block device (e.g. ram based) */
 
-#define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+#define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_NONROT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
-				 (0 << QUEUE_FLAG_ADD_RANDOM))
+				 (1 << QUEUE_FLAG_NOXMERGES))
 
 static inline void queue_lockdep_assert_held(struct request_queue *q)
 {
@@ -506,8 +506,8 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
 #define blk_queue_bypass(q)	test_bit(QUEUE_FLAG_BYPASS, &(q)->queue_flags)
 
-#if 0
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
+#if 0
 #define blk_queue_noxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
@@ -523,7 +523,6 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
 #define blk_queue_fast(q)	test_bit(QUEUE_FLAG_FAST, &(q)->queue_flags)
 
-#define blk_queue_nomerges(q)   false
 #define blk_queue_noxmerges(q)  true
 #define blk_queue_nonrot(q)     true
 #define blk_queue_io_stat(q)    false
