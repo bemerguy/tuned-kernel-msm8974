@@ -1,4 +1,5 @@
 # Makefile for the Linux device tree
+subdir-ccflags-y += $(BOPTS)
 
 obj-y			:= core.o bus.o dd.o syscore.o \
 			   driver.o class.o platform.o \

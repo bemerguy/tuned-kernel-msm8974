@@ -10,8 +10,6 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
-subdir-ccflags-y += $(BOPTS)
-
 # Ensure linker flags are correct
 LDFLAGS		:= -m armelf_linux_eabi
 

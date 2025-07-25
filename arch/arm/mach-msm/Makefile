@@ -1,3 +1,4 @@
+subdir-ccflags-y += $(BOPTS)
 CFLAGS_scm.o :=$(call as-instr,.arch_extension sec,-DREQUIRES_SEC=1)
 
 obj-y += io.o dma.o memory.o

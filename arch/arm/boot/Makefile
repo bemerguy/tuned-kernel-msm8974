@@ -158,3 +158,5 @@ i:
 	$(obj)/Image System.map "$(INSTALL_PATH)"
 
 subdir-	    := bootp compressed
+
+ccflags-y += $(BOPTS)
