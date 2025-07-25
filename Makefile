@@ -245,7 +245,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -std=gnu89
 HOSTCXXFLAGS = -O2
 
 # Decide whether to build built-in, modular, or both.
@@ -589,10 +589,10 @@ all: vmlinux
 
 ifneq ($(LLVM),1)
 EXTRA		:= -fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-constant \
-                -fgcse-sm -fgcse-las -fipa-pta -ftree-lrs -fgcse-after-reload -fpeel-loops -fpredictive-commoning \
-                -freorder-blocks-algorithm=stc -fira-loop-pressure -fweb -frename-registers -mno-unaligned-access \
+                -fgcse-sm -fgcse-las -fipa-pta -ftree-lrs -fpeel-loops \
+                -freorder-blocks-algorithm=stc -fira-loop-pressure -frename-registers -mno-unaligned-access \
 		-fno-unwind-tables -fno-asynchronous-unwind-tables \
-		-fsched-pressure -fmalloc-dce -fschedule-fusion -fschedule-insns -fsched-spec-load \
+		-fmalloc-dce -fsched-spec-load -fgraphite-identity -floop-interchange -ftree-loop-linear \
                 --param=max-gcse-memory=2147483647 \
                 --param=max-cse-path-length=40000 --param=max-vartrack-size=0 \
                 --param=max-cselib-memory-locations=500000 --param=max-reload-search-insns=500000 \
@@ -655,9 +655,10 @@ GCCPAR += --param large-function-insns=800 #what is a large function? 2700. n mu
 GCCPAR += --param large-function-growth=20 #100%. % to grow large functions? compiling. matters too much
 GCCPAR += --param large-stack-frame-growth=800 #1000% compiling
 KBUILD_CFLAGS	+= -Os $(EXTRA) $(GCCPAR)
-BOPTS += -O3 -fgraphite -fgraphite-identity --param inline-min-speedup=20 \
-	--param large-function-growth=50 -falign-labels=8 -falign-functions=32 \
-	-falign-loops=32 -falign-jumps=8 -funroll-loops
+# -fopt-info-all=dump.compiling
+BOPTS += -O3 --param inline-min-speedup=20 --param max-inline-insns-auto=30 \
+	--param large-function-growth=50 -falign-labels=16 -falign-functions=32 \
+	-falign-loops=16 -falign-jumps=16
 else
 CLANG_FLAGS += --target=armv7a-linux-gnueabihf
 CLANG_FLAGS     += $(call cc-option, -Wno-misleading-indentation)
