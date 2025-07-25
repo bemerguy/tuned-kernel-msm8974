@@ -140,7 +140,7 @@ static struct adreno_device device_3d0 = {
 		.pm_dump_enable = 0,
 	},
 	.gmem_base = 0,
-	.gmem_size = SZ_512K,
+	.gmem_size = SZ_256K,
 	.pfp_fw = NULL,
 	.pm4_fw = NULL,
 	.wait_timeout = 0, /* in milliseconds, 0 means disabled */
