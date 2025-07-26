@@ -819,7 +819,7 @@ static ssize_t disksize_store(struct device *dev,
 	if (!disksize)
 		return -EINVAL;
 
-	disksize = PAGE_ALIGN(disksize);
+	disksize = PAGE_ALIGN(disksize*5);
 	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
 	if (!meta)
 		return -ENOMEM;
@@ -1158,6 +1158,11 @@ static int create_device(struct zram *zram, int device_id)
 	blk_queue_io_opt(zram->disk->queue, PAGE_SIZE);
 	zram->disk->queue->limits.discard_granularity = PAGE_SIZE;
 	zram->disk->queue->limits.max_discard_sectors = UINT_MAX;
+
+	zram->disk->queue->nr_requests = 16;
+	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, zram->disk->queue);
+	zram->disk->queue->backing_dev_info.ra_pages = 0;
+
 	/*
 	 * zram_bio_discard() will clear all logical blocks if logical block
 	 * size is identical with physical block size(PAGE_SIZE). But if it is
