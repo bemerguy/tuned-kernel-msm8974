@@ -56,7 +56,7 @@ ENTRY(__memzero)
 	stmiage	r0!, {r2, r3, ip, lr}	@ 4
 	stmiage	r0!, {r2, r3, ip, lr}	@ 4
 	bgt	3b			@ 1
-	ldmeqfd	sp!, {pc}		@ 1/2 quick exit
+	ldmiaeq	sp!, {pc}		@ 1/2 quick exit
 /*
  * No need to correct the count; we're only testing bits from now on
  */
@@ -98,7 +98,7 @@ ENTRY(__memzero)
 	stmiage	r0!, {r2-r7, ip, lr}
 	stmiage	r0!, {r2-r7, ip, lr}
 	bgt	3b
-	ldmeqfd	sp!, {r4-r7, pc}
+	ldmiaeq	sp!, {r4-r7, pc}
 
 	tst	r1, #32
 	stmiane	r0!, {r2-r7, ip, lr}

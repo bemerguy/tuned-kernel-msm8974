@@ -43,7 +43,7 @@ ENTRY(memset)
 	stmiage	ip!, {r1, r3, r8, lr}
 	stmiage	ip!, {r1, r3, r8, lr}
 	bgt	2b
-	ldmeqfd	sp!, {r8, pc}		@ Now <64 bytes to go.
+	ldmiaeq	sp!, {r8, pc}		@ Now <64 bytes to go.
 /*
  * No need to correct the count; we're only testing bits from now on
  */
@@ -87,7 +87,7 @@ ENTRY(memset)
 	stmiage	ip!, {r1, r3-r8, lr}
 	stmiage	ip!, {r1, r3-r8, lr}
 	bgt	3b
-	ldmeqfd	sp!, {r4-r8, pc}
+	ldmiaeq	sp!, {r4-r8, pc}
 
 	tst	r2, #32
 	stmiane	ip!, {r1, r3-r8, lr}
