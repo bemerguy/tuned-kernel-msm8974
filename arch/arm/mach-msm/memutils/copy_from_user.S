@@ -75,7 +75,11 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
-	str\cond\()b \reg, [\ptr], #1
+	.ifnc \cond, al
+	strb\cond \reg, [\ptr], #1
+	.else
+	strb \reg, [\ptr], #1
+	.endif
 	.endm
 
 	.macro enter reg1 reg2
