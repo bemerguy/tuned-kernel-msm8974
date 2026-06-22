@@ -30,6 +30,23 @@
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 
+/* === DEBUG EXTRA PARA BIMC / CPUBW === */
+#define DEBUG_BIMC 0
+
+#if DEBUG_BIMC
+#include <linux/printk.h>
+static inline void dbg_bimc_print(unsigned long ab, unsigned long ib, int level)
+{
+    /* DDR teórico em MHz = ib (MB/s) / (8 bytes * 2 canais) */
+    unsigned long ddr_mhz = ib / (8 * 2); 
+
+    pr_info("[BIMC][CPUBW] Level: %d | AB: %lu MB/s | IB: %lu MB/s | ~DDR: %lu MHz\n",
+            level, ab, ib, ddr_mhz);
+}
+#else
+#define dbg_bimc_print(ab, ib, level) do {} while (0)
+#endif
+
 /* Has to be ULL to prevent overflow where this macro is used. */
 #define MBYTE (1ULL << 20)
 #define MAX_PATHS	2
@@ -62,7 +79,9 @@ static int set_bw(int new_ib, int new_ab)
 	bw_levels[i].vectors[0].ab = new_ab / num_paths * MBYTE;
 	bw_levels[i].vectors[1].ib = new_ib * MBYTE;
 	bw_levels[i].vectors[1].ab = new_ab / num_paths * MBYTE;
-
+#if DEBUG_BIMC
+    dbg_bimc_print(new_ab, new_ib, i);
+#endif
 	pr_debug("BW MBps: AB: %d IB: %d\n", new_ab, new_ib);
 
 	ret = msm_bus_scale_client_update_request(bus_client, i);
@@ -117,7 +136,7 @@ static struct devfreq_governor_data gov_data[] = {
 };
 
 struct devfreq_dev_profile cpubw_profile = {
-	.polling_ms = 50,
+	.polling_ms = 25,
 	.target = cpubw_target,
 	.governor_data = gov_data,
 	.num_governor_data = ARRAY_SIZE(gov_data),
