@@ -2,11 +2,11 @@
 #path to gcc toolchain
 TOOLCHAIN="/home/me/x-tools/arm-unknown-linux-gnueabihf/bin/arm-unknown-linux-gnueabihf-"
 
-#I'm gonna test using clang later
-#export LLVM=1
+export LLVM=1
 
 if [ "$LLVM" = "1" ]; then
-TOOLCHAIN="/usr/lib/llvm-21/bin/"
+TOOLCHAIN="/home/me/kernelupgrade/toolchains/clang-22/bin/"
+export PATH="$TOOLCHAIN:$PATH"
 fi
 
 export ARCH=arm
