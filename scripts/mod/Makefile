@@ -1,6 +1,6 @@
 CFLAGS_REMOVE_empty.o = -flto -flto=full -fvisibility=hidden
 
-hostprogs-y	:= modpost mk_elfconfig devicetable-offsets
+hostprogs-y	:= modpost mk_elfconfig
 
 always		:= $(hostprogs-y) empty.o
 
@@ -13,7 +13,8 @@ HOSTCFLAGS_devicetable-offsets.o += -I$(srctree)/include -I$(obj)
 devicetable-offsets-file := devicetable-offsets.h
 
 define sed-y
-	"/^->/{s:->#\(.*\):/* \1 */:; \
+	"s:[[:space:]]*\.ascii[[:space:]]*\"\(.*\)\":\1:; \
+	/^->/{s:->#\(.*\):/* \1 */:; \
 	s:^->\([^ ]*\) [\$$#]*\([-0-9]*\) \(.*\):#define \1 \2 /* \3 */:; \
 	s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; \
 	s:->::; p;}"
