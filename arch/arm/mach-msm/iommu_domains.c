@@ -52,7 +52,7 @@ void msm_iommu_set_client_name(struct iommu_domain *domain, char const *name)
 	priv->client_name = name;
 }
 
-int msm_use_iommu()
+int msm_use_iommu(void)
 {
 	return iommu_present(&platform_bus_type);
 }
