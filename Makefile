@@ -334,19 +334,26 @@ include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
 
+ifneq ($(LLVM),1)
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-ifneq ($(LLVM),1)
 CC		= $(CROSS_COMPILE)gcc
-else
-CC		= $(CROSS_COMPILE)clang
-endif
-CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
+else
+CC		= clang
+AS		= clang
+LD		= ld.lld
+AR		= llvm-ar
+NM		= llvm-nm
+STRIP		= llvm-strip
+OBJCOPY		= llvm-objcopy
+OBJDUMP		= llvm-objdump
+endif
+CPP		= $(CC) -E
 AWK		= awk
 GENKSYMS	= scripts/genksyms/genksyms
 INSTALLKERNEL  := installkernel
@@ -355,7 +362,11 @@ PERL		= perl
 CHECK		= sparse
 
 ifeq ($(CONFIG_CRYPTO_FIPS),)
+ifneq ($(LLVM),1)
  READELF	= $(CROSS_COMPILE)readelf
+else
+ READELF	= llvm-readelf
+endif
  export READELF
 endif
 
@@ -670,7 +681,7 @@ KBUILD_CFLAGS   += $(CLANG_FLAGS)
 KBUILD_AFLAGS   += $(CLANG_FLAGS)
 export CLANG_FLAGS
 KBUILD_CFLAGS   += -Os
-BOPTS += -O3
+BOPTS += -O2
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
