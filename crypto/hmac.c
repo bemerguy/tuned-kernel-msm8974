@@ -52,20 +52,18 @@ static int hmac_setkey(struct crypto_shash *parent,
 	struct hmac_ctx *ctx = align_ptr(opad + ss,
 					 crypto_tfm_ctx_alignment());
 	struct crypto_shash *hash = ctx->hash;
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(hash)];
-	} desc;
+	char desc_ctx[sizeof(struct shash_desc) + crypto_shash_descsize(hash)] __aligned(__alignof__(struct shash_desc));
+	struct shash_desc *desc = (struct shash_desc *)desc_ctx;
 	unsigned int i;
 
-	desc.shash.tfm = hash;
-	desc.shash.flags = crypto_shash_get_flags(parent) &
+	desc->tfm = hash;
+	desc->flags = crypto_shash_get_flags(parent) &
 			    CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (keylen > bs) {
 		int err;
 
-		err = crypto_shash_digest(&desc.shash, inkey, keylen, ipad);
+		err = crypto_shash_digest(desc, inkey, keylen, ipad);
 		if (err)
 			return err;
 
@@ -81,12 +79,12 @@ static int hmac_setkey(struct crypto_shash *parent,
 		opad[i] ^= 0x5c;
 	}
 
-	return crypto_shash_init(&desc.shash) ?:
-	       crypto_shash_update(&desc.shash, ipad, bs) ?:
-	       crypto_shash_export(&desc.shash, ipad) ?:
-	       crypto_shash_init(&desc.shash) ?:
-	       crypto_shash_update(&desc.shash, opad, bs) ?:
-	       crypto_shash_export(&desc.shash, opad);
+	return crypto_shash_init(desc) ?:
+	       crypto_shash_update(desc, ipad, bs) ?:
+	       crypto_shash_export(desc, ipad) ?:
+	       crypto_shash_init(desc) ?:
+	       crypto_shash_update(desc, opad, bs) ?:
+	       crypto_shash_export(desc, opad);
 }
 
 static int hmac_export(struct shash_desc *pdesc, void *out)

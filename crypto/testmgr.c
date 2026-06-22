@@ -1527,16 +1527,14 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 	}
 
 	do {
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(tfm)];
-		} sdesc;
+		char sdesc_ctx[sizeof(struct shash_desc) + crypto_shash_descsize(tfm)] __aligned(__alignof__(struct shash_desc));
+		struct shash_desc *sdesc = (struct shash_desc *)sdesc_ctx;
 
-		sdesc.shash.tfm = tfm;
-		sdesc.shash.flags = 0;
+		sdesc->tfm = tfm;
+		sdesc->flags = 0;
 
-		*(u32 *)sdesc.ctx = le32_to_cpu(420553207);
-		err = crypto_shash_final(&sdesc.shash, (u8 *)&val);
+		*(u32 *)sdesc->__ctx = le32_to_cpu(420553207);
+		err = crypto_shash_final(sdesc, (u8 *)&val);
 		if (err) {
 			printk(KERN_ERR "alg: crc32c: Operation failed for "
 			       "%s: %d\n", driver, err);

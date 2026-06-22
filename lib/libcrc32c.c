@@ -41,20 +41,18 @@ static struct crypto_shash *tfm;
 
 u32 crc32c(u32 crc, const void *address, unsigned int length)
 {
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm)];
-	} desc;
+	char desc_ctx[sizeof(struct shash_desc) + crypto_shash_descsize(tfm)] __aligned(__alignof__(struct shash_desc));
+	struct shash_desc *desc = (struct shash_desc *)desc_ctx;
 	int err;
 
-	desc.shash.tfm = tfm;
-	desc.shash.flags = 0;
-	*(u32 *)desc.ctx = crc;
+	desc->tfm = tfm;
+	desc->flags = 0;
+	*(u32 *)desc->__ctx = crc;
 
-	err = crypto_shash_update(&desc.shash, address, length);
+	err = crypto_shash_update(desc, address, length);
 	BUG_ON(err);
 
-	return *(u32 *)desc.ctx;
+	return *(u32 *)desc->__ctx;
 }
 
 EXPORT_SYMBOL(crc32c);
