@@ -9,25 +9,27 @@
 	unsigned int hook_mask = info->valid_hooks; \
 	unsigned int nhooks = hweight32(hook_mask); \
 	unsigned int bytes = 0, hooknum = 0, i = 0; \
-	struct { \
-		struct type##_replace repl; \
-		struct type##_standard entries[nhooks]; \
-		struct type##_error term; \
-	} *tbl = kzalloc(sizeof(*tbl), GFP_KERNEL); \
+	size_t total_size = sizeof(struct type##_replace) + \
+	                    nhooks * sizeof(struct type##_standard) + \
+	                    sizeof(struct type##_error); \
+	void *tbl = kzalloc(total_size, GFP_KERNEL); \
 	if (tbl == NULL) \
 		return NULL; \
-	strncpy(tbl->repl.name, info->name, sizeof(tbl->repl.name)); \
-	tbl->term = (struct type##_error)typ2##_ERROR_INIT;  \
-	tbl->repl.valid_hooks = hook_mask; \
-	tbl->repl.num_entries = nhooks + 1; \
-	tbl->repl.size = nhooks * sizeof(struct type##_standard) + \
-	                 sizeof(struct type##_error); \
+	struct type##_replace *repl = tbl; \
+	struct type##_standard *entries = (void *)repl + sizeof(*repl); \
+	struct type##_error *term = (void *)entries + nhooks * sizeof(struct type##_standard); \
+	strncpy(repl->name, info->name, sizeof(repl->name)); \
+	*term = (struct type##_error)typ2##_ERROR_INIT;  \
+	repl->valid_hooks = hook_mask; \
+	repl->num_entries = nhooks + 1; \
+	repl->size = nhooks * sizeof(struct type##_standard) + \
+	             sizeof(struct type##_error); \
 	for (; hook_mask != 0; hook_mask >>= 1, ++hooknum) { \
 		if (!(hook_mask & 1)) \
 			continue; \
-		tbl->repl.hook_entry[hooknum] = bytes; \
-		tbl->repl.underflow[hooknum]  = bytes; \
-		tbl->entries[i++] = (struct type##_standard) \
+		repl->hook_entry[hooknum] = bytes; \
+		repl->underflow[hooknum]  = bytes; \
+		entries[i++] = (struct type##_standard) \
 			typ2##_STANDARD_INIT(NF_ACCEPT); \
 		bytes += sizeof(struct type##_standard); \
 	} \
