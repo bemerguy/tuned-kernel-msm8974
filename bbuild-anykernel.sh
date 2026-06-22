@@ -44,7 +44,7 @@ step2_make_config()
 	echo
 
 	mkdir -p out
-	MAKESTRING="O=out ARCH=arm oldconfig"
+	MAKESTRING="O=out ARCH=arm olddefconfig"
         cp arch/arm/configs/$DEFCONFIG out/.config
 
 case "$VAR" in
