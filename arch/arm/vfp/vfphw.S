@@ -18,6 +18,8 @@
 #include <asm/vfpmacros.h>
 #include "../kernel/entry-header.S"
 
+	.fpu	vfpv3
+
 	.macro	DBGSTR, str
 #ifdef DEBUG
 	stmfd	sp!, {r0-r3, ip, lr}
