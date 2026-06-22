@@ -325,9 +325,9 @@ int of_device_is_available(const struct device_node *device)
 	unsigned long flags;
 	int res;
 
-	raw_spin_lock_irqsave(&devtree_lock, flags);
+	read_lock_irqsave(&devtree_lock, flags);
 	res = __of_device_is_available(device);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	read_unlock_irqrestore(&devtree_lock, flags);
 	return res;
 
 }
