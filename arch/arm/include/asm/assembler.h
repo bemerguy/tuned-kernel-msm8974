@@ -247,9 +247,17 @@
 	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=TUSER()
 9999:
 	.if	\inc == 1
-	\instr\cond\()b\()\t\().w \reg, [\ptr, #\off]
+	.ifnc	\cond, al
+	\instr\()b\cond\()\t\().w \reg, [\ptr, #\off]
+	.else
+	\instr\()b\()\t\().w \reg, [\ptr, #\off]
+	.endif
 	.elseif	\inc == 4
+	.ifnc	\cond, al
 	\instr\cond\()\t\().w \reg, [\ptr, #\off]
+	.else
+	\instr\()\t\().w \reg, [\ptr, #\off]
+	.endif
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif
@@ -288,9 +296,17 @@
 	.rept	\rept
 9999:
 	.if	\inc == 1
-	\instr\cond\()b\()\t \reg, [\ptr], #\inc
+	.ifnc	\cond, al
+	\instr\()b\cond\()\t \reg, [\ptr], #\inc
+	.else
+	\instr\()b\()\t \reg, [\ptr], #\inc
+	.endif
 	.elseif	\inc == 4
+	.ifnc	\cond, al
 	\instr\cond\()\t \reg, [\ptr], #\inc
+	.else
+	\instr\()\t \reg, [\ptr], #\inc
+	.endif
 	.else
 	.error	"Unsupported inc macro argument"
 	.endif
