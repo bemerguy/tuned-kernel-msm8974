@@ -371,7 +371,7 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 "	bpl	2f\n"
 	WFE_SAFE("%[fixup]", "%[tmp]")
 "2:\n"
-"	rsbpls	%[tmp], %[tmp2], #0\n"
+"	rsbspl	%[tmp], %[tmp2], #0\n"
 "	bmi	1b"
 	: [tmp] "=&r" (tmp), [tmp2] "=&r" (tmp2), [fixup] "+r" (fixup)
 	: [lock] "r" (&rw->lock)
