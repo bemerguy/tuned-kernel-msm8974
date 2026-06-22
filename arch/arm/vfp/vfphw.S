@@ -296,7 +296,7 @@ ENDPROC(vfp_put_float)
 ENTRY(vfp_get_double)
 	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-1:	fmrrd	r0, r1, d\dr
+1:	vmov	r0, r1, d\dr
 	mov	pc, lr
 	.org	1b + 8
 	.endr
@@ -318,7 +318,7 @@ ENDPROC(vfp_get_double)
 ENTRY(vfp_put_double)
 	tbl_branch r2, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-1:	fmdrr	d\dr, r0, r1
+1:	vmov	d\dr, r0, r1
 	mov	pc, lr
 	.org	1b + 8
 	.endr
