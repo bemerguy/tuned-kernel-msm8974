@@ -83,9 +83,9 @@ static unsigned int decay_rate = 90;
 static unsigned int io_percent = 16;
 static unsigned int bw_step = 190;
 
-#define MIN_MS	10U
+#define MIN_MS	4U
 #define MAX_MS	25U
-static unsigned int sample_ms = 25;
+static unsigned int sample_ms = 8;
 static u32 prev_r_start_val;
 static u32 prev_w_start_val;
 static unsigned long prev_ab;

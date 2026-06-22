@@ -136,7 +136,7 @@ static struct devfreq_governor_data gov_data[] = {
 };
 
 struct devfreq_dev_profile cpubw_profile = {
-	.polling_ms = 25,
+	.polling_ms = 8,
 	.target = cpubw_target,
 	.governor_data = gov_data,
 	.num_governor_data = ARRAY_SIZE(gov_data),
