@@ -1878,7 +1878,9 @@ sha256_block_data_order_neon:
 	stmdb	sp!,{r4-r12,lr}
 
 	sub	r11,sp,#16*4+16
-	adrl	r14,K256
+	movw	r14, #:lower16:K256 - 1f
+	movt	r14, #:upper16:K256 - 1f
+1:	add	r14, r14, pc
 	bic	r11,r11,#15		@ align for 128-bit stores
 	mov	r12,sp
 	mov	sp,r11			@ alloca
@@ -2669,7 +2671,9 @@ sha256_block_data_order_armv8:
 	adr	r3,.LARMv8
 	sub	r3,r3,#.LARMv8-K256
 # else
-	adrl	r3,K256
+	movw	r3, #:lower16:K256 - 1f
+	movt	r3, #:upper16:K256 - 1f
+1:	add	r3, r3, pc
 # endif
 	add	r2,r1,r2,lsl#6	@ len to point at the end of inp
 
