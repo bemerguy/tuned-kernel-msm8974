@@ -21,8 +21,8 @@
 1:	subs	r1, r1, #4		@ 1 do we have enough
 	blt	5f			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
-	strltb	r2, [r0], #1		@ 1
-	strleb	r2, [r0], #1		@ 1
+	strblt	r2, [r0], #1		@ 1
+	strble	r2, [r0], #1		@ 1
 	strb	r2, [r0], #1		@ 1
 	add	r1, r1, r3		@ 1 (r1 = r1 - (4 - r3))
 /*
@@ -51,20 +51,20 @@ ENTRY(__memzero)
 	mov	lr, r2			@ 1
 
 3:	subs	r1, r1, #64		@ 1 write 32 bytes out per loop
-	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
-	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
-	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
-	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
+	stmiage	r0!, {r2, r3, ip, lr}	@ 4
+	stmiage	r0!, {r2, r3, ip, lr}	@ 4
+	stmiage	r0!, {r2, r3, ip, lr}	@ 4
+	stmiage	r0!, {r2, r3, ip, lr}	@ 4
 	bgt	3b			@ 1
 	ldmeqfd	sp!, {pc}		@ 1/2 quick exit
 /*
  * No need to correct the count; we're only testing bits from now on
  */
 	tst	r1, #32			@ 1
-	stmneia	r0!, {r2, r3, ip, lr}	@ 4
-	stmneia	r0!, {r2, r3, ip, lr}	@ 4
+	stmiane	r0!, {r2, r3, ip, lr}	@ 4
+	stmiane	r0!, {r2, r3, ip, lr}	@ 4
 	tst	r1, #16			@ 1 16 bytes or more?
-	stmneia	r0!, {r2, r3, ip, lr}	@ 4
+	stmiane	r0!, {r2, r3, ip, lr}	@ 4
 	ldr	lr, [sp], #4		@ 1
 
 #else
@@ -89,27 +89,27 @@ ENTRY(__memzero)
 	rsb	ip, ip, #32
 	sub	r1, r1, ip
 	movs	ip, ip, lsl #(32 - 4)
-	stmcsia	r0!, {r4, r5, r6, r7}
-	stmmiia	r0!, {r4, r5}
+	stmiacs	r0!, {r4, r5, r6, r7}
+	stmiami	r0!, {r4, r5}
 	movs	ip, ip, lsl #2
 	strcs	r2, [r0], #4
 
 3:	subs	r1, r1, #64
-	stmgeia	r0!, {r2-r7, ip, lr}
-	stmgeia	r0!, {r2-r7, ip, lr}
+	stmiage	r0!, {r2-r7, ip, lr}
+	stmiage	r0!, {r2-r7, ip, lr}
 	bgt	3b
 	ldmeqfd	sp!, {r4-r7, pc}
 
 	tst	r1, #32
-	stmneia	r0!, {r2-r7, ip, lr}
+	stmiane	r0!, {r2-r7, ip, lr}
 	tst	r1, #16
-	stmneia	r0!, {r4-r7}
+	stmiane	r0!, {r4-r7}
 	ldmfd	sp!, {r4-r7, lr}
 
 #endif
 
 4:	tst	r1, #8			@ 1 8 bytes or more?
-	stmneia	r0!, {r2, r3}		@ 2
+	stmiane	r0!, {r2, r3}		@ 2
 	tst	r1, #4			@ 1 4 bytes or more?
 	strne	r2, [r0], #4		@ 1
 /*
@@ -117,9 +117,9 @@ ENTRY(__memzero)
  * may have an unaligned pointer as well.
  */
 5:	tst	r1, #2			@ 1 2 bytes or more?
-	strneb	r2, [r0], #1		@ 1
-	strneb	r2, [r0], #1		@ 1
+	strbne	r2, [r0], #1		@ 1
+	strbne	r2, [r0], #1		@ 1
 	tst	r1, #1			@ 1 a byte left over
-	strneb	r2, [r0], #1		@ 1
+	strbne	r2, [r0], #1		@ 1
 	mov	pc, lr			@ 1
 ENDPROC(__memzero)
