@@ -656,9 +656,9 @@ GCCPAR += --param large-function-growth=20 #100%. % to grow large functions? com
 GCCPAR += --param large-stack-frame-growth=800 #1000% compiling
 KBUILD_CFLAGS	+= -Os $(EXTRA) $(GCCPAR)
 # -fopt-info-all=dump.compiling
-BOPTS += -O3 --param inline-min-speedup=20 --param max-inline-insns-auto=30 \
-	--param large-function-growth=50 -falign-labels=16 -falign-functions=32 \
-	-falign-loops=16 -falign-jumps=16
+BOPTS += -O2 --param inline-min-speedup=20 --param max-inline-insns-auto=30 \
+	--param large-function-growth=50 -falign-labels=4 -falign-functions=16 \
+	-falign-loops=4 -falign-jumps=4
 else
 CLANG_FLAGS += --target=armv7a-linux-gnueabihf
 CLANG_FLAGS     += $(call cc-option, -Wno-misleading-indentation)
