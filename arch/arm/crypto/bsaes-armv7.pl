@@ -1411,7 +1411,9 @@ bsaes_ctr32_encrypt_blocks:
 .align	2
 0:	add	r12, $key, #248
 	vld1.8	{@XMM[0]}, [$ctr]		@ load counter
-	adrl	$ctr, .LREVM0SR			@ borrow $ctr
+	movw	$ctr, #:lower16:.LREVM0SR - 1f
+	movt	$ctr, #:upper16:.LREVM0SR - 1f
+1:	add	$ctr, $ctr, pc			@ borrow $ctr
 	vldmia	r12, {@XMM[4]}			@ load round0 key
 	sub	sp, #0x10			@ place for adjusted round0 key
 #endif
