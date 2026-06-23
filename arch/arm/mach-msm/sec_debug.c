@@ -750,14 +750,18 @@ DEFINE_PER_CPU(enum sec_debug_upload_cause_t, sec_debug_upload_cause);
 /* save last_pet and last_ns with these nice functions */
 void sec_debug_save_last_pet(unsigned long long last_pet)
 {
+#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 	if(secdbg_log)
 		secdbg_log->last_pet = last_pet;
+#endif
 }
 
 void sec_debug_save_last_ns(unsigned long long last_ns)
 {
+#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 	if(secdbg_log)
 		atomic64_set(&(secdbg_log->last_ns), last_ns);
+#endif
 }
 EXPORT_SYMBOL(sec_debug_save_last_pet);
 EXPORT_SYMBOL(sec_debug_save_last_ns);
@@ -1766,6 +1770,7 @@ static void sec_debug_set_build_info(void)
 	strlcat(p, sec_build_time[1], sizeof(sec_build_info));
 }
 
+#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 static int __init __init_sec_debug_log(void)
 {
 	int i;
@@ -1832,6 +1837,7 @@ static int __init __init_sec_debug_log(void)
 
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_SEC_DEBUG_SUBSYS
 int sec_debug_save_die_info(const char *str, struct pt_regs *regs)
@@ -2367,6 +2373,7 @@ int __init sec_debug_procfs_init(void)
 // SEC_CP_CRASH_LOG
 int sec_debug_get_cp_crash_log(char *str)
 {
+#ifdef CONFIG_SEC_DEBUG_SUBSYS
     struct sec_debug_subsys_data_modem *modem = (struct sec_debug_subsys_data_modem *)&secdbg_subsys->priv.modem;
 
 //  if(!strcmp(modem->state, "Init"))
@@ -2374,6 +2381,9 @@ int sec_debug_get_cp_crash_log(char *str)
 
     return sprintf(str, "%s, %s, %s, %d, %s",
         modem->excp.type, modem->excp.task, modem->excp.file, modem->excp.line, modem->excp.msg);
+#else
+    return sprintf(str, "No CP crash log support");
+#endif
 }
 #endif /* CONFIG_USER_RESET_DEBUG */
 

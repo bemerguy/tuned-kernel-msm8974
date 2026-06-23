@@ -54,7 +54,11 @@ extern void sec_gaf_supply_rqinfo(unsigned short curr_offset,
 extern int sec_debug_is_enabled(void);
 extern int sec_debug_is_enabled_for_ssr(void);
 extern int silent_log_panic_handler(void);
+#ifdef CONFIG_SEC_DEBUG_SUBSYS
 extern void sec_debug_secure_app_addr_size(uint32_t addr,uint32_t size);
+#else
+static inline void sec_debug_secure_app_addr_size(uint32_t addr,uint32_t size) {}
+#endif
 #else
 static inline int sec_debug_init(void)
 {
@@ -335,7 +339,11 @@ extern int kernel_sec_get_debug_level(void);
 extern int ssr_panic_handler_for_sec_dbg(void);
 __weak void dump_all_task_info(void);
 __weak void dump_cpu_stat(void);
+#if defined(CONFIG_MSM_WATCHDOG) || defined(CONFIG_MSM_WATCHDOG_V2)
 extern void emerg_pet_watchdog(void);
+#else
+static inline void emerg_pet_watchdog(void) {}
+#endif
 extern void msm_restart(char mode, const char *cmd);
 #define LOCAL_CONFIG_PRINT_EXTRA_INFO
 

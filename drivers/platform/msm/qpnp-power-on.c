@@ -39,9 +39,7 @@
 	static int check_pkey_press;
 #endif
 
-#ifndef CONFIG_SEC_DEBUG
 extern struct class *sec_class;
-#endif // !CONFIG_SEC_DEBUG
 
 /* Common PNP defines */
 #define QPNP_PON_REVISION2(base)		(base + 0x01)
