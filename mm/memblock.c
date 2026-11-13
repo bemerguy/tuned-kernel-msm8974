@@ -604,7 +604,7 @@ void __init_memblock __next_free_mem_range(u64 *idx, int nid,
 		for ( ; ri < rsv->cnt + 1; ri++) {
 			struct memblock_region *r = &rsv->regions[ri];
 			phys_addr_t r_start = ri ? r[-1].base + r[-1].size : 0;
-			phys_addr_t r_end = ri < rsv->cnt ? r->base : ULLONG_MAX;
+			phys_addr_t r_end = ri < rsv->cnt ? r->base : ~(phys_addr_t)0;
 
 			/* if ri advanced past mi, break out to advance mi */
 			if (r_start >= m_end)
@@ -672,7 +672,7 @@ void __init_memblock __next_free_mem_range_rev(u64 *idx, int nid,
 		for ( ; ri >= 0; ri--) {
 			struct memblock_region *r = &rsv->regions[ri];
 			phys_addr_t r_start = ri ? r[-1].base + r[-1].size : 0;
-			phys_addr_t r_end = ri < rsv->cnt ? r->base : ULLONG_MAX;
+			phys_addr_t r_end = ri < rsv->cnt ? r->base : ~(phys_addr_t)0;
 
 			/* if ri advanced past mi, break out to advance mi */
 			if (r_end <= m_start)

@@ -192,8 +192,8 @@ static inline u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp
 	return snmp_fold_field(mib, offt);
 }
 #endif
-extern int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align);
-extern void snmp_mib_free(void __percpu *ptr[2]);
+extern int snmp_mib_init(void __percpu *ptr[SNMP_ARRAY_SZ], size_t mibsize, size_t align);
+extern void snmp_mib_free(void __percpu *ptr[SNMP_ARRAY_SZ]);
 
 extern struct local_ports {
 	seqlock_t	lock;
