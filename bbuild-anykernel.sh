@@ -2,8 +2,8 @@
 #path to gcc toolchain
 TOOLCHAIN="arm-linux-gnueabihf-"
 
-# GCC by default; LLVM=1 ./bbuild-anykernel.sh <variant> to build with clang
-export LLVM=${LLVM:-0}
+# clang by default; LLVM=0 ./bbuild-anykernel.sh <variant> to build with GCC
+export LLVM=${LLVM:-1}
 
 if [ "$LLVM" = "1" ]; then
 TOOLCHAIN="/home/me/kernelupgrade/toolchains/llvm-23.1.0-x86_64/bin/"
