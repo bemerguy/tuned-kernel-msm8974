@@ -573,6 +573,8 @@ cache_on:	mov	r3, #8			@ cache_on function
  * Initialize the highest priority protection region, PR7
  * to cover all 32bit address and cacheable and bufferable.
  */
+/* pre-ARMv7 cache routines: CP15 barriers are the only option there */
+		.arch	armv6
 __armv4_mpu_cache_on:
 		mov	r0, #0x3f		@ 4G, the whole
 		mcr	p15, 0, r0, c6, c7, 0	@ PR7 Area Setting
@@ -713,6 +715,7 @@ __armv4_mmu_cache_on:
 #endif
 		mov	pc, r12
 
+		.arch	armv7-a
 __armv7_mmu_cache_on:
 		mov	r12, lr
 #ifdef CONFIG_MMU
@@ -721,7 +724,7 @@ __armv7_mmu_cache_on:
 		movne	r6, #CB_BITS | 0x02	@ !XN
 		blne	__setup_mmu
 		mov	r0, #0
-		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+		dsb					@ drain write buffer
 		tst	r11, #0xf		@ VMSA
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
@@ -741,13 +744,14 @@ __armv7_mmu_cache_on:
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
 #endif
-		mcr	p15, 0, r0, c7, c5, 4	@ ISB
+		isb					@ ISB
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
-		mcr	p15, 0, r0, c7, c5, 4	@ ISB
+		isb					@ ISB
 		mov	pc, r12
 
+		.arch	armv6
 __fa526_cache_on:
 		mov	r12, lr
 		mov	r6, #CB_BITS | 0x12	@ U
@@ -1045,6 +1049,7 @@ __armv4_mmu_cache_off:
 #endif
 		mov	pc, lr
 
+		.arch	armv7-a
 __armv7_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
 #ifdef CONFIG_MMU
@@ -1060,10 +1065,11 @@ __armv7_mmu_cache_off:
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
 #endif
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
-		mcr	p15, 0, r0, c7, c10, 4	@ DSB
-		mcr	p15, 0, r0, c7, c5, 4	@ ISB
+		dsb					@ DSB
+		isb					@ ISB
 		mov	pc, r12
 
+		.arch	armv6
 __arm6_mmu_cache_off:
 		mov	r0, #0x00000030		@ ARM6 control reg.
 		b	__armv3_mmu_cache_off
@@ -1124,6 +1130,7 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
+		.arch	armv7-a
 __armv7_mmu_cache_flush:
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
@@ -1132,7 +1139,7 @@ __armv7_mmu_cache_flush:
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
 hierarchical:
-		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+		dmb					@ DMB
 		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
@@ -1146,7 +1153,7 @@ loop1:
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
-		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+		isb					@ isb to sych the new cssr&csidr
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
@@ -1178,12 +1185,13 @@ finished:
 		mov	r10, #0			@ swith back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
-		mcr	p15, 0, r10, c7, c10, 4	@ DSB
+		dsb					@ DSB
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
-		mcr	p15, 0, r10, c7, c10, 4	@ DSB
-		mcr	p15, 0, r10, c7, c5, 4	@ ISB
+		dsb					@ DSB
+		isb					@ ISB
 		mov	pc, lr
 
+		.arch	armv6
 __armv5tej_mmu_cache_flush:
 1:		mrc	p15, 0, APSR_nzcv, c7, c14, 3	@ test,clean,invalidate D cache
 		bne	1b
@@ -1228,6 +1236,8 @@ __armv3_mpu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr
+
+		.arch	armv7-a
 
 /*
  * Various debugging routines for printing hex characters and
