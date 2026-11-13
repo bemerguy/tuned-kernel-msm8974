@@ -762,7 +762,7 @@ int mbim_configure_params(void)
 static int mbim_bam_connect(struct f_mbim *dev)
 {
 	int ret;
-	u8 src_connection_idx, dst_connection_idx;
+	int src_connection_idx, dst_connection_idx;
 	struct usb_gadget *gadget = dev->cdev->gadget;
 	enum peer_bam bam_name = (dev->xport == USB_GADGET_XPORT_BAM2BAM_IPA) ?
 							IPA_P_BAM : A2_P_BAM;
@@ -775,7 +775,7 @@ static int mbim_bam_connect(struct f_mbim *dev)
 					PEER_PERIPHERAL_TO_USB, dev->port_num);
 	if (src_connection_idx < 0 || dst_connection_idx < 0) {
 		pr_err("%s: usb_bam_get_connection_idx failed\n", __func__);
-		return ret;
+		return -EINVAL;
 	}
 
 	ret = bam_data_connect(&dev->bam_port, dev->port_num,

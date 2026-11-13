@@ -454,7 +454,7 @@ static int ecm_qc_bam_setup(void)
 static int ecm_qc_bam_connect(struct f_ecm_qc *dev)
 {
 	int ret;
-	u8 src_connection_idx, dst_connection_idx;
+	int src_connection_idx, dst_connection_idx;
 	struct usb_composite_dev *cdev = dev->port.func.config->cdev;
 	struct usb_gadget *gadget = cdev->gadget;
 	enum peer_bam peer_bam = (dev->xport == USB_GADGET_XPORT_BAM2BAM_IPA) ?
@@ -472,7 +472,7 @@ static int ecm_qc_bam_connect(struct f_ecm_qc *dev)
 		PEER_PERIPHERAL_TO_USB, 0);
 	if (src_connection_idx < 0 || dst_connection_idx < 0) {
 		pr_err("%s: usb_bam_get_connection_idx failed\n", __func__);
-		return ret;
+		return -EINVAL;
 	}
 	ret = bam_data_connect(&dev->bam_port, 0, dev->xport,
 		src_connection_idx, dst_connection_idx, USB_FUNC_ECM);
