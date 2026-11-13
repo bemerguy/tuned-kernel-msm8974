@@ -1,8 +1,9 @@
 #!/bin/bash
 #path to gcc toolchain
-TOOLCHAIN="/home/me/x-tools/arm-unknown-linux-gnueabihf/bin/arm-unknown-linux-gnueabihf-"
+TOOLCHAIN="arm-linux-gnueabihf-"
 
-export LLVM=1
+# GCC by default; LLVM=1 ./bbuild-anykernel.sh <variant> to build with clang
+export LLVM=${LLVM:-0}
 
 if [ "$LLVM" = "1" ]; then
 TOOLCHAIN="/home/me/kernelupgrade/toolchains/clang-22/bin/"

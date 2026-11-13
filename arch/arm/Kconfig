@@ -1826,7 +1826,7 @@ config THUMB2_AVOID_R_ARM_THM_JUMP11
 	  Unless you are sure your tools don't have this problem, say Y.
 
 config ARM_ASM_UNIFIED
-	bool
+	def_bool y
 
 config AEABI
 	bool "Use the ARM EABI to compile the kernel"
