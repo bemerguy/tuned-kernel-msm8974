@@ -464,8 +464,8 @@ sha256_block_data_order_neon:
 	stmdb	sp!,{r4-r12,lr}
 
 	sub	$H,sp,#16*4+16
-	movw	$Ktbl, #:lower16:K256 - 1f
-	movt	$Ktbl, #:upper16:K256 - 1f
+	movw	$Ktbl, #:lower16:K256 - (1f + 8)
+	movt	$Ktbl, #:upper16:K256 - (1f + 8)
 1:	add	$Ktbl, $Ktbl, pc
 	bic	$H,$H,#15		@ align for 128-bit stores
 	mov	$t2,sp
@@ -601,8 +601,8 @@ sha256_block_data_order_armv8:
 	adr	$Ktbl,.LARMv8
 	sub	$Ktbl,$Ktbl,#.LARMv8-K256
 # else
-	movw	$Ktbl, #:lower16:K256 - 1f
-	movt	$Ktbl, #:upper16:K256 - 1f
+	movw	$Ktbl, #:lower16:K256 - (1f + 8)
+	movt	$Ktbl, #:upper16:K256 - (1f + 8)
 1:	add	$Ktbl, $Ktbl, pc
 # endif
 	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
