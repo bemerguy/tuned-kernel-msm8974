@@ -2313,7 +2313,7 @@ wl_run_escan(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 #endif /* WL_HOST_BAND_MGMT */
 
 					/* ignore DFS channels */
-					if (request->channels[i]->flags &
+/*					if (request->channels[i]->flags &
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 						(IEEE80211_CHAN_NO_IR
 						| IEEE80211_CHAN_RADAR))
@@ -2330,7 +2330,7 @@ wl_run_escan(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 						}
 						continue;
 					}
-#endif
+#endif*/
 
 					for (j = 0; j < n_valid_chan; j++) {
 						/* allows only supported channel on
