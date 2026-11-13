@@ -383,3 +383,44 @@ notrace int in_lock_functions(unsigned long addr)
 	&& addr < (unsigned long)__lock_text_end;
 }
 EXPORT_SYMBOL(in_lock_functions);
+
+#ifdef __clang__
+#undef _raw_spin_lock
+#undef _raw_spin_lock_irqsave
+#undef _raw_spin_lock_irq
+#undef _raw_spin_unlock
+#undef _raw_spin_unlock_irqrestore
+#undef _raw_spin_unlock_irq
+
+#ifdef CONFIG_INLINE_SPIN_LOCK
+void __lockfunc _raw_spin_lock(raw_spinlock_t *lock) { __raw_spin_lock(lock); }
+EXPORT_SYMBOL(_raw_spin_lock);
+#endif
+
+#ifdef CONFIG_INLINE_SPIN_LOCK_IRQSAVE
+unsigned long __lockfunc _raw_spin_lock_irqsave(raw_spinlock_t *lock) { return __raw_spin_lock_irqsave(lock); }
+EXPORT_SYMBOL(_raw_spin_lock_irqsave);
+#endif
+
+#ifdef CONFIG_INLINE_SPIN_LOCK_IRQ
+void __lockfunc _raw_spin_lock_irq(raw_spinlock_t *lock) { __raw_spin_lock_irq(lock); }
+EXPORT_SYMBOL(_raw_spin_lock_irq);
+#endif
+
+#ifndef CONFIG_UNINLINE_SPIN_UNLOCK
+void __lockfunc _raw_spin_unlock(raw_spinlock_t *lock) { __raw_spin_unlock(lock); }
+EXPORT_SYMBOL(_raw_spin_unlock);
+#endif
+
+#ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQRESTORE
+void __lockfunc _raw_spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned long flags) { __raw_spin_unlock_irqrestore(lock, flags); }
+EXPORT_SYMBOL(_raw_spin_unlock_irqrestore);
+#endif
+
+#ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQ
+void __lockfunc _raw_spin_unlock_irq(raw_spinlock_t *lock) { __raw_spin_unlock_irq(lock); }
+EXPORT_SYMBOL(_raw_spin_unlock_irq);
+#endif
+#endif
+
+

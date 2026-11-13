@@ -88,6 +88,14 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(__memzero);
 
+extern int bcmp(const void *, const void *, size_t);
+extern char *stpcpy(char *, const char *);
+extern size_t wcslen(const void *);
+
+EXPORT_SYMBOL(bcmp);
+EXPORT_SYMBOL(stpcpy);
+EXPORT_SYMBOL(wcslen);
+
 	/* user mem (segment) */
 EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__strncpy_from_user);

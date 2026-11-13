@@ -598,7 +598,13 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-ifneq ($(LLVM),1)
+ifeq ($(findstring clang,$(CC)),clang)
+  COMPILER := clang
+else
+  COMPILER := gcc
+endif
+
+ifeq ($(COMPILER),gcc)
 EXTRA		:= -fmodulo-sched -fmodulo-sched-allow-regmoves -fsingle-precision-constant \
                 -fgcse-sm -fgcse-las -fipa-pta -ftree-lrs -fpeel-loops \
                 -freorder-blocks-algorithm=stc -fira-loop-pressure -frename-registers -mno-unaligned-access \
@@ -672,11 +678,24 @@ BOPTS += -O2 --param inline-min-speedup=20 --param max-inline-insns-auto=30 \
 	-falign-loops=4 -falign-jumps=4
 else
 CLANG_FLAGS += --target=armv7a-linux-gnueabihf
+CLANG_FLAGS     += -mno-unaligned-access
+CLANG_FLAGS     += -mno-global-merge
+CLANG_FLAGS     += -fno-builtin
+CLANG_FLAGS     += -Wno-asm-operand-widths
+CLANG_FLAGS     += -Wno-initializer-overrides
+CLANG_FLAGS     += $(call cc-option, -Qunused-arguments,)
 CLANG_FLAGS     += $(call cc-option, -Wno-misleading-indentation)
 CLANG_FLAGS     += $(call cc-option, -Wno-bool-operation)
 CLANG_FLAGS     += -Werror=unknown-warning-option
 CLANG_FLAGS     += $(call cc-option, -Wno-unsequenced)
 CLANG_FLAGS     += $(call cc-option, -Wno-default-const-init-field-unsafe)
+CLANG_FLAGS     += $(call cc-option, -Wno-unused-variable)
+CLANG_FLAGS     += $(call cc-option, -Wno-format-invalid-specifier)
+CLANG_FLAGS     += $(call cc-option, -Wno-gnu)
+CLANG_FLAGS     += $(call cc-option, -Wno-pointer-bool-conversion)
+CLANG_FLAGS     += $(call cc-option, -Wno-address-of-packed-member)
+CLANG_FLAGS     += $(call cc-option, -Wno-duplicate-decl-specifier)
+CLANG_FLAGS     += $(call cc-option, -Wno-tautological-compare)
 KBUILD_CFLAGS   += $(CLANG_FLAGS)
 KBUILD_AFLAGS   += $(CLANG_FLAGS)
 export CLANG_FLAGS

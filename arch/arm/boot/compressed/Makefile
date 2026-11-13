@@ -133,7 +133,7 @@ endif
 ccflags-y := -fpic -fno-builtin -I$(obj)
 
 # Supply kernel BSS size to the decompressor via a linker symbol.
-KBSS_SZ = $(shell $(CROSS_COMPILE)size $(obj)/../../../../vmlinux | \
+KBSS_SZ = $(shell $(if $(filter 1,$(LLVM)),llvm-size,$(CROSS_COMPILE)size) $(objtree)/vmlinux | \
 		awk 'END{print $$3}')
 LDFLAGS_vmlinux = --defsym _kernel_bss_size=$(KBSS_SZ)
 # Supply ZRELADDR to the decompressor via a linker symbol.

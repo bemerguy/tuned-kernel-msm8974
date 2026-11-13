@@ -254,6 +254,7 @@ int __devinit msm_pm_boot_init(struct msm_pm_boot_platform_data *pdata)
 		break;
 	default:
 //		__WARN();
+		break;
 	}
 
 	return ret;

@@ -101,3 +101,6 @@ signing_key.x509
 signing_key.x509.keyid
 signing_key.x509.signer
 x509.genkey
+
+anykernel_boeffla/dt
+anykernel_boeffla/zImage

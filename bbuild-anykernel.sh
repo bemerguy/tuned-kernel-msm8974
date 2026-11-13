@@ -6,7 +6,7 @@ TOOLCHAIN="arm-linux-gnueabihf-"
 export LLVM=${LLVM:-0}
 
 if [ "$LLVM" = "1" ]; then
-TOOLCHAIN="/home/me/kernelupgrade/toolchains/clang-22/bin/"
+TOOLCHAIN="/home/me/kernelupgrade/toolchains/llvm-23.1.0-x86_64/bin/"
 export PATH="$TOOLCHAIN:$PATH"
 fi
 

@@ -841,36 +841,4 @@ void *memchr_inv(const void *start, int c, size_t bytes)
 }
 EXPORT_SYMBOL(memchr_inv);
 
-#ifndef __HAVE_ARCH_BCMP
-int bcmp(const void *s1, const void *s2, size_t n)
-{
-	return memcmp(s1, s2, n);
-}
-EXPORT_SYMBOL(bcmp);
-#endif
-
-#ifndef __HAVE_ARCH_STPCPY
-char *stpcpy(char *dest, const char *src)
-{
-	while ((*dest = *src)) {
-		dest++;
-		src++;
-	}
-	return dest;
-}
-EXPORT_SYMBOL(stpcpy);
-#endif
-
-#ifndef __HAVE_ARCH_WCSLEN
-typedef __WCHAR_TYPE__ compiler_wchar_t;
-size_t wcslen(const compiler_wchar_t *s)
-{
-	const compiler_wchar_t *sc;
-
-	for (sc = s; *sc != 0; ++sc)
-		/* nothing */;
-	return sc - s;
-}
-EXPORT_SYMBOL(wcslen);
-#endif
 
