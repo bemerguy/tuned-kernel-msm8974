@@ -25,15 +25,14 @@
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {
 	unsigned long to = FLUSH_ALIAS_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
-	const int zero = 0;
 
 	set_top_pte(to, pfn_pte(pfn, PAGE_KERNEL));
 
 	asm(	"mcrr	p15, 0, %1, %0, c14\n"
-	"	mcr	p15, 0, %2, c7, c10, 4"
 	    :
-	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
+	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
 	    : "cc");
+	dsb();
 }
 
 static void flush_icache_alias(unsigned long pfn, unsigned long vaddr, unsigned long len)
