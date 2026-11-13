@@ -2734,6 +2734,10 @@ static int cypress_touchkey_suspend(struct device *dev)
 		return 0;
 	}
 
+	/* fb notifier and PM can both call us: keep irq disable balanced */
+	if (!info->enabled)
+		return 0;
+
 #ifdef TSP_BOOSTER
 	cypress_set_dvfs_lock(info, 2);
 	dev_info(&info->client->dev,
@@ -2758,6 +2762,10 @@ static int cypress_touchkey_resume(struct device *dev)
 					__func__);
 		return 0;
 	}
+
+	/* already on (e.g. first unblank after probe): don't enable irq twice */
+	if (info->enabled)
+		return 0;
 
 	cypress_power_onoff(info, 1);
 	msleep(50);
