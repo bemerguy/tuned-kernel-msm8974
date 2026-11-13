@@ -23,18 +23,19 @@ device.name3=toroplus
 device.name4=tuna
 supported.versions=6.0 - 7.1.2
 supported.patchlevels=2019-07 -
+supported.vendorpatchlevels=2013-07
 
-block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;
-is_slot_device=0;
-ramdisk_compression=auto;
-patch_vbmeta_flag=auto;
+BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;
+IS_SLOT_DEVICE=0;
+RAMDISK_COMPRESSION=auto;
+PATCH_VBMETA_FLAG=auto;
 ```
 
 __do.devicecheck=1__ specified requires at least device.name1 to be present. This should match ro.product.device, ro.build.product, ro.product.vendor.device or ro.vendor.product.device from the build.prop files for your device. There is support for as many device.name# properties as needed. You may remove any empty ones that aren't being used.
 
 __do.modules=1__ will push the .ko contents of the modules directory to the same location relative to root (/) and apply correct permissions. On A/B devices this can only be done to the active slot.
 
-__do.systemless=1__ (with __do.modules=1__) will instead push the full contents of the modules directory to create a simple "ak3-helper" Magisk module, allowing developers to effectively replace system files, including .ko files. If the current kernel is changed then the kernel helper module automatically removes itself to prevent conflicts.
+__do.systemless=1__ (with __do.modules=1__) will instead push the full contents of the modules directory to create a simple "ak3-helper" Magisk/KernelSU module, allowing developers to effectively replace system files, including .ko files. If the current kernel is changed then the kernel helper module automatically removes itself to prevent conflicts.
 
 __do.cleanup=0__ will keep the zip from removing its working directory in /tmp/anykernel (by default) - this can be useful if trying to debug in adb shell whether the patches worked correctly.
 
@@ -42,21 +43,25 @@ __do.cleanuponabort=0__ will keep the zip from removing its working directory in
 
 __supported.versions=__ will match against ro.build.version.release from the current ROM's build.prop. It can be set to a list or range. As a list of one or more entries, e.g. `7.1.2` or `8.1.0, 9` it will look for exact matches, as a range, e.g. `7.1.2 - 9` it will check to make sure the current version falls within those limits. Whitespace optional, and supplied version values should be in the same number format they are in the build.prop value for that Android version.
 
-__supported.patchlevels=__ will match against ro.build.version.security_patch from the current ROM's build.prop. It can be set as a closed or open-ended range of dates in the format YYYY-MM, whitespace optional, e.g. `2019-04 - 2019-06`, `2019-04 -` or `- 2019-06` where the last two examples show setting a minimum and maximum, respectively.
+__supported.patchlevels=__ and __supported.vendorpatchlevels=__ will match against ro.build.version.security_patch and ro.vendor.build.security_patch, respectively, from the current system/vendor build.prop. They can be set as a closed or open-ended range of dates in the format YYYY-MM, whitespace optional, e.g. `2019-04 - 2019-06`, `2019-04 -` or `- 2019-06` where the last two examples show setting a minimum or maximum.
 
-`block=auto` instead of a direct block filepath enables detection of the device boot partition for use with broad, device non-specific zips. Also accepts any partition filename (from by-name), e.g. `boot`, `recovery` or `vendor_boot`.
+`BLOCK=auto` instead of a direct block filepath enables detection of the device boot partition for use with broad, device non-specific zips. Also accepts any partition filename (from by-name), e.g. `boot`, `recovery` or `vendor_boot`.
 
-`is_slot_device=1` enables detection of the suffix for the active boot partition on slot-based devices and will add this to the end of the supplied `block=` path. Also accepts `auto` for use with broad, device non-specific zips.
+`IS_SLOT_DEVICE=1` enables detection of the suffix for the active boot partition on slot-based devices and will add this to the end of the supplied `BLOCK=` path. Also accepts `auto` for use with broad, device non-specific zips.
 
-`ramdisk_compression=auto` allows automatically repacking the ramdisk with the format detected during unpack. Changing `auto` to `gz`, `lzo`, `lzma`, `xz`, `bz2`, `lz4`, or `lz4-l` (for lz4 legacy) instead forces the repack as that format, and using `cpio` or `none` will (attempt to) force the repack as uncompressed.
+`RAMDISK_COMPRESSION=auto` allows automatically repacking the ramdisk with the format detected during unpack. Changing `auto` to `gz`, `lzo`, `lzma`, `xz`, `bz2`, `lz4`, or `lz4-l` (for lz4 legacy) instead forces the repack as that format, and using `cpio` or `none` will (attempt to) force the repack as uncompressed.
 
-`patch_vbmeta_flag=auto` allows automatically using the default AVBv2 vbmeta flag on repack, and use the Magisk configuration Canary 23016+. Set to `0` forces keeping whatever is in the original AVBv2 flags, and set to `1` forces patching the flag (only necessary on few devices).
+`PATCH_VBMETA_FLAG=auto` allows automatically using the default AVBv2 vbmeta flag on repack, and use the Magisk configuration Canary 23016+. Set to `0` forces keeping whatever is in the original AVBv2 flags, and set to `1` forces patching the flag (only necessary on few devices).
 
-`customdd="<arguments>"` may be added to allow specifying additional dd parameters for devices that need to hack their kernel directly into a large partition like mmcblk0, or force use of dd for flashing.
+`CUSTOMDD="<arguments>"` may be added to allow specifying additional dd parameters for devices that need to hack their kernel directly into a large partition like mmcblk0, or force use of dd for flashing.
 
-`slot_select=active|inactive` may be added to allow specifying the target slot. If omitted the default remains `active`.
+`SLOT_SELECT=active|inactive` may be added to allow specifying the target slot. If omitted the default remains `active`.
 
-`no_block_display=1` may be added to disable output of the detected final used partition+slot path for zips which choose to include their own custom output instead.
+`NO_BLOCK_DISPLAY=1` may be added to disable output of the detected final used partition+slot path for zips which choose to include their own custom output instead.
+
+`NO_MAGISK_CHECK=1` may be added to disable detection of Magisk and related kernel/dtb repatching for special zips which don't require that.
+
+`NO_VBMETA_PARTITION_PATCH=1` may be added to skip vbmeta processing using httools, since GKI is bootable with verity/verification ON, as long as AVB is not enforced for boot stage partitions.
 
 ## // Command Methods ##
 ```
@@ -71,6 +76,7 @@ set_perm_recursive <owner> <group> <dir_mode> <file_mode> <dir> [<dir2> ...]
 dump_boot
 split_boot
 unpack_ramdisk
+unpack_vendorrd <name|path>
 
 backup_file <file>
 restore_file <file>
@@ -84,7 +90,7 @@ prepend_file <file> <if search string> <patch file>
 insert_file <file> <if search string> <before|after> <line match string> <patch file>
 append_file <file> <if search string> <patch file>
 replace_file <file> <permissions> <patch file>
-patch_fstab <fstab file> <mount match name> <fs match type> block|mount|fstype|options|flags <original string> <replacement string>
+patch_fstab <fstab file> <mount match name> <fs match type> <block|mount|fstype|options|flags> <original string> <replacement string>
 patch_cmdline <cmdline entry name> <replacement string>
 patch_prop <prop file> <prop name> <new prop value>
 patch_ueventd <ueventd file> <device node> <permissions> <chown> <chgrp>
@@ -108,11 +114,11 @@ __"before|after"__ requires you simply specify __"before"__ or __"after"__ for t
 
 __"block|mount|fstype|options|flags"__ requires you specify which part (listed in order) of the fstab entry you want to check and alter.
 
-_dump_boot_ and _write_boot_ are the default method of unpacking/repacking, but for more granular control, or omitting ramdisk changes entirely ("OG AK" mode), these can be separated into _split_boot; unpack_ramdisk_ and _repack_ramdisk; flash_boot_ respectively. _flash_generic_ can be used to flash an image to the corresponding partition. It is automatically included for dtbo and vendor_dlkm in _write_boot_ but can be called separately if using "OG AK" mode or creating a simple partition flashing only zip.
+_dump_boot_ and _write_boot_ are the default method of unpacking/repacking, but for more granular control, or omitting ramdisk changes entirely ("OG AK" mode), these can be separated into _split_boot; unpack_ramdisk_ and _repack_ramdisk; flash_boot_ respectively. _unpack_ramdisk_ unpacks all vendor_boot v4 format sub-ramdisks where _unpack_vendorrd \<name|path\>_ can be used instead to only unpack a specific sub-ramdisk while leaving the others untouched and __"name"__ is the v4 sub-ramdisk name (e.g. platform or ramdisk, dlkm, recovery); _repack_ramdisk_ will repack any unpacked sub-ramdisks so is used in both cases. _flash_generic_ can be used to flash an image to the corresponding partition. It is automatically included for dtbo, system_dlkm and vendor_dlkm in _write_boot_ but can be called separately if using "OG AK" mode or creating a simple partition flashing only zip.
 
-Multi-partition zips can be created by removing the ramdisk and patch folders from the zip and including instead "-files" folders named for the partition (without slot suffix), e.g. boot-files + recovery-files, or kernel-files + ramdisk-files (on some Treble devices). These then contain Image.gz, and ramdisk, patch, etc. subfolders for each partition. To setup for the next partition, simply set `block=` (without slot suffix) and `ramdisk_compression=` for the new target partition and use the _reset_ak_ command.
+Multi-partition zips can be created by removing the ramdisk and patch folders from the zip and including instead "-files" folders named for the partition (without slot suffix), e.g. boot-files + recovery-files, or kernel-files + ramdisk-files (on some Treble devices). These then contain Image.gz, and ramdisk (or vendor_ramdisk/\<name\> for vendor_boot v4 format), patch, etc. subfolders for each partition. To setup for the next partition, simply set `BLOCK=` (without slot suffix) and `RAMDISK_COMPRESSION=` for the new target partition and use the _reset_ak_ command.
 
-Similarly, multi-slot zips can be created with the normal zip layout for the active (current) slot, then resetting for the inactive slot by setting `block=` (without slot suffix) again, `slot_select=inactive` and `ramdisk_compression=` for the target slot and using the _reset_ak keep_ command, which will retain the patch and any added ramdisk files for the next slot.
+Similarly, multi-slot zips can be created with the normal zip layout for the active (current) slot, then resetting for the inactive slot by setting `BLOCK=` (without slot suffix) again, `SLOT_SELECT=inactive` and `RAMDISK_COMPRESSION=` for the target slot and using the _reset_ak keep_ command, which will retain the patch and any added ramdisk files for the next slot.
 
 _backup_file_ may be used for testing to ensure ramdisk changes are made correctly, transparency for the end-user, or in a ramdisk-only "mod" zip. In the latter case _restore_file_ could also be used to create a "restore" zip to undo the changes, but should be used with caution since the underlying patched files could be changed with ROM/kernel updates.
 
@@ -120,7 +126,7 @@ You may also use _ui_print "\<text\>"_ to write messages back to the recovery du
 
 ## // Binary Inclusion ##
 
-The AK3 repo includes current ARM builds of `magiskboot`, `magiskpolicy`, `lptools_static`, `httools_static`, `fec` and `busybox` by default to keep the basic package small. Builds for other architectures and optional binaries (see below) are available from the latest Magisk zip, or my latest AIK-mobile and FlashIt packages, respectively, here:
+The AK3 repo includes current ARM builds of `magiskboot`, `magiskpolicy`, `lptools_static`, `httools_static`, `fec`, `snapshotupdater_static` and `busybox` by default to keep the basic package small. Builds for other architectures and optional binaries (see below) are available from the latest Magisk zip, or my latest AIK-mobile and FlashIt packages, respectively, here:
 
 https://forum.xda-developers.com/t/tool-android-image-kitchen-unpack-repack-kernel-ramdisk-win-android-linux-mac.2073775/ (Android Image Kitchen thread)  
 https://forum.xda-developers.com/t/tools-zips-scripts-osm0sis-odds-and-ends-multiple-devices-platforms.2239421/ (Odds and Ends thread)
@@ -133,19 +139,19 @@ Optional supported binaries which may be placed in /tools to enable built-in exp
 * `unpackelf`, `mkbootimg` - Sony ELF kernel.elf format support, repacking as AOSP standard boot.img for unlocked bootloaders
 * `elftool` (with `unpackelf`) - Sony ELF kernel.elf format support, repacking as ELF for older Sony devices
 * `mkmtkhdr` (with `unpackelf`) - MTK device boot image section headers support for Sony devices
-* `futility` + `chromeos` test keys directory - Google ChromeOS signature support
-* `boot_signer-dexed.jar` + `avb` keys directory - Google Android Verified Boot 1.0 (AVBv1) signature support
+* `futility` + `chromeos` test keys directory - Google ChromeOS signature support (deprecated)
+* `boot_signer-dexed.jar` (deprecated) + `avb` keys directory - Google Android Verified Boot 1.0 (AVBv1) custom signature support
 * `rkcrc` - Rockchip KRNL ramdisk image support
 
 Optionally moving ARM builds to tools/arm and putting x86 builds in tools/x86 will enable architecture detection for use with broad, device non-specific zips.
 
 ## // Instructions ##
 
-1. Place final kernel build product, e.g. Image.gz-dtb or zImage to name a couple, in the zip root (any separate dt, dtb or recovery_dtbo, dtbo and/or vendor_dlkm should also go here for devices that require custom ones, each will fallback to the original if not included)
+1. Place final kernel build product, e.g. Image.gz-dtb or zImage to name a couple, in the zip root (any separate dt, dtb or recovery_dtbo, dtbo, system_dlkm and/or vendor_dlkm should also go here for devices that require custom ones, each will fallback to the original if not included)
 
-2. Place any required ramdisk files in /ramdisk (/vendor_ramdisk for simple multi-partition vendor_boot v3 support) and module files in /modules (with the full path like /modules/system/lib/modules)
+2. Place any required ramdisk files in /ramdisk (/vendor_ramdisk for simple multi-partition vendor_boot v3 support, or /vendor_ramdisk/\<name\> for simple multi-partition vendor_kernel_boot v4 support) and module files in /modules (with the full path like /modules/system/lib/modules)
 
-3. Place any required patch files (generally partial files which go with AK3 file editing commands) in /patch (/vendor_patch for simple multi-partition vendor_boot v3 support)
+3. Place any required patch files (generally partial files which go with AK3 file editing commands) in /patch (/vendor_patch for simple multi-partition vendor_boot v3 or vendor_kernel_boot v4 support)
 
 4. Modify the anykernel.sh to add your kernel's name, boot partition location, permissions for any added ramdisk files, and use methods for any required ramdisk modifications (optionally, also place banner and/or version files in the root to have these displayed during flash)
 

@@ -49,6 +49,13 @@ PATCH_VBMETA_FLAG=auto;
 # boot install
 dump_boot; # use split_boot to skip ramdisk unpack, e.g. for devices with init_boot ramdisk
 
+# The stock kernel here is a zImage, so magiskboot would recompress our new
+# zImage inside the OLD kernel's decompressor (and silently keep the old
+# kernel if that does not fit). Clear the zImage magic (0x24) of the kernel
+# in the template image so magiskboot writes our zImage as-is.
+pagesize=$(od -An -tu4 -j36 -N4 $BOOTIMG | tr -d ' ');
+printf '\0\0\0\0' | dd of=$BOOTIMG bs=1 seek=$((pagesize + 36)) conv=notrunc 2>/dev/null;
+
 write_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
 ## end boot install
 
