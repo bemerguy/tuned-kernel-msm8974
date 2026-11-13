@@ -226,7 +226,7 @@ static void set_vibrator(struct ss_vib *vib)
 					VIBRATION_ON);
 #endif
 		}
-		printk(KERN_DEBUG "[VIB] : %s\n", __func__);
+//		printk(KERN_DEBUG "[VIB] : %s\n", __func__);
 		if (vibrator_drvdata.power_onoff) {
 			if (!vibrator_drvdata.changed_chip)
 				vibrator_drvdata.power_onoff(1);
@@ -268,7 +268,7 @@ static void set_vibrator(struct ss_vib *vib)
 					VIBRATION_OFF);
 #endif
 		}
-		printk(KERN_DEBUG "[VIB] : %s\n", __func__);
+//		printk(KERN_DEBUG "[VIB] : %s\n", __func__);
 		if (vibrator_drvdata.power_onoff) {
 			if (!vibrator_drvdata.changed_chip)
 				vibrator_drvdata.power_onoff(0);
