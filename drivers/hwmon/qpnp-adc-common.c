@@ -1098,7 +1098,7 @@ int32_t qpnp_adc_tm_scale_voltage_therm_pu2(struct qpnp_vadc_chip *chip,
 {
 	int64_t adc_voltage = 0;
 	struct qpnp_vadc_linear_graph param1;
-	int negative_offset;
+	int negative_offset = 0;
 
 	qpnp_get_vadc_gain_and_offset(chip, &param1, CALIB_RATIOMETRIC);
 

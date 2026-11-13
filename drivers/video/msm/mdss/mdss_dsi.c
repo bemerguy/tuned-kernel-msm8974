@@ -731,7 +731,7 @@ static void __mdss_dsi_ctrl_setup(struct mdss_panel_data *pdata)
 	u32 clk_rate;
 	u32 hbp, hfp, vbp, vfp, hspw, vspw, width, height;
 	u32 ystride, bpp, data, dst_bpp;
-	u32 dummy_xres, dummy_yres;
+	u32 dummy_xres = 0, dummy_yres = 0;
 	u32 hsync_period, vsync_period;
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,

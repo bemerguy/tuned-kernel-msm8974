@@ -153,7 +153,7 @@ static void wait_callback(struct kgsl_device *device,
 
 #define adreno_wait_event_interruptible(wq, condition, io)                    \
 ({                                                                            \
-	long __ret;                                                           \
+	long __ret = 0;                                                       \
 	if (io)                                                               \
 		__wait_io_event_interruptible(wq, condition, __ret);          \
 	else                                                                  \

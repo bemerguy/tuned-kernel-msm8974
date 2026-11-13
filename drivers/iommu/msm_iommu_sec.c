@@ -298,7 +298,7 @@ static int msm_iommu_sec_ptbl_init(void)
 	} pinit;
 	unsigned int *buf;
 	int psize[2] = {0, 0};
-	unsigned int spare;
+	unsigned int spare = 0;
 	int ret, ptbl_ret = 0;
 	int version;
 

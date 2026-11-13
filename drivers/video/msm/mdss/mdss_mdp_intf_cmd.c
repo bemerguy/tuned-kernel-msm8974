@@ -513,6 +513,7 @@ static void mdss_mdp_cmd_pingpong_done(void *arg)
 	mdss_mdp_ctl_perf_set_transaction_status(ctl,
 		PERF_HW_MDP_STATE, PERF_STATUS_DONE);
 
+	vsync_time = ktime_get();
 	spin_lock(&ctx->clk_lock);
 	list_for_each_entry(tmp, &ctx->vsync_handlers, list) {
 		if (tmp->enabled && tmp->cmd_post_flush)

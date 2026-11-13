@@ -1471,6 +1471,7 @@ static int journal_get_superblock(journal_t *journal)
 	int err = -EIO;
 
 	bh = journal->j_sb_buffer;
+	sb = journal->j_superblock;
 
 	J_ASSERT(bh != NULL);
 	if (!buffer_uptodate(bh)) {

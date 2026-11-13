@@ -566,7 +566,7 @@ int es705_remote_close_slim_tx(int dai_id)
 	struct es705_priv *es705 = &es705_priv;
 	struct slim_device *sbdev = es705->gen0_client;
 	int be_id;
-	int ch_cnt;
+	int ch_cnt = 0;
 	int rc = 0;
 
 	dev_info(&sbdev->dev, "%s(): dai_id = %d\n", __func__, dai_id);
