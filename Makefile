@@ -790,6 +790,26 @@ CHECKFLAGS     += $(NOSTDINC_FLAGS)
 # warn about C99 declaration after statement
 KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 
+ifeq ($(COMPILER),clang)
+# Harmless with this old code base (style, gnu89-isms, packed-struct notes,
+# intentional enum/null conversions, typecheck() dummies in time_after()).
+# Kept after the -W flags above so they take effect.
+KBUILD_CFLAGS += $(call cc-disable-warning, declaration-after-statement)
+KBUILD_CFLAGS += $(call cc-disable-warning, strict-prototypes)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-function)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-label)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-global)
+KBUILD_CFLAGS += $(call cc-disable-warning, typedef-redefinition)
+KBUILD_CFLAGS += $(call cc-disable-warning, ignored-attributes)
+KBUILD_CFLAGS += $(call cc-disable-warning, unaligned-access)
+KBUILD_CFLAGS += $(call cc-disable-warning, implicit-enum-enum-cast)
+KBUILD_CFLAGS += $(call cc-disable-warning, incompatible-pointer-types-discards-qualifiers)
+KBUILD_CFLAGS += $(call cc-disable-warning, parentheses-equality)
+KBUILD_CFLAGS += $(call cc-disable-warning, default-const-init-var-unsafe)
+KBUILD_CFLAGS += $(call cc-disable-warning, non-literal-null-conversion)
+endif
+
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 

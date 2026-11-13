@@ -610,6 +610,12 @@ DHDCFLAGS += -include "dhd_sec_feature.h"
 #EXTRA_LDFLAGS += --strip-debug
 
 EXTRA_CFLAGS += $(DHDCFLAGS) -DDHD_DEBUG
+ifeq ($(LLVM),1)
+# DHDCFLAGS re-enables -Wall/-Wstrict-prototypes after the global flags
+EXTRA_CFLAGS += $(call cc-disable-warning, strict-prototypes)
+EXTRA_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+EXTRA_CFLAGS += $(call cc-disable-warning, unused-but-set-global)
+endif
 EXTRA_CFLAGS += -DSRCBASE=\"$(src)\"
 EXTRA_CFLAGS += -I$(src)/include/ -I$(src)/
 KBUILD_CFLAGS += -I$(LINUXDIR)/include -I$(shell pwd)
