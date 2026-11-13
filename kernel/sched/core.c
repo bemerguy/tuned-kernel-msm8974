@@ -7368,8 +7368,13 @@ void __init sched_init(void)
 	int i, j;
 	unsigned long alloc_size = 0, ptr;
 #ifdef CONFIG_SEC_DEBUG
+#ifdef CONFIG_FAIR_GROUP_SCHED
 	sec_gaf_supply_rqinfo(offsetof(struct rq, curr),
 						  offsetof(struct cfs_rq, rq));
+#else
+	/* cfs_rq->rq does not exist; sec_gaf ignores this argument then */
+	sec_gaf_supply_rqinfo(offsetof(struct rq, curr), 0);
+#endif
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
