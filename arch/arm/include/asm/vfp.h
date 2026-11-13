@@ -5,13 +5,13 @@
  * First, the standard VFP set.
  */
 
-#define FPSID			cr0
-#define FPSCR			cr1
-#define MVFR1			cr6
-#define MVFR0			cr7
-#define FPEXC			cr8
-#define FPINST			cr9
-#define FPINST2			cr10
+#define FPSID			fpsid
+#define FPSCR			fpscr
+#define MVFR1			mvfr1
+#define MVFR0			mvfr0
+#define FPEXC			fpexc
+#define FPINST			fpinst
+#define FPINST2			fpinst2
 
 /* FPSID bits */
 #define FPSID_IMPLEMENTER_BIT	(24)

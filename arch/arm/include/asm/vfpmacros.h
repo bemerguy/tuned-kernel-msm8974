@@ -7,13 +7,12 @@
 
 #include "vfp.h"
 
-@ Macros to allow building with old toolkits (with no VFP support)
 	.macro	VFPFMRX, rd, sysreg, cond
-	MRC\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMRX	\rd, \sysreg
+	vmrs\cond	\rd, \sysreg
 	.endm
 
 	.macro	VFPFMXR, sysreg, rd, cond
-	MCR\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMXR	\sysreg, \rd
+	vmsr\cond	\sysreg, \rd
 	.endm
 
 	@ read all the working registers back into the VFP

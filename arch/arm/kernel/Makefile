@@ -74,6 +74,11 @@ obj-$(CONFIG_IWMMXT)		+= iwmmxt.o
 obj-$(CONFIG_CPU_HAS_PMU)	+= pmu.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_regs.o
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o
+ifeq ($(LLVM),1)
+# Krait VMRESR (mcr p10, 7, rX, c11, c0, 0) has no vmsr name; clang's
+# "cp10 and cp11 are reserved" warning for it is expected
+CFLAGS_perf_event.o		+= -Wa,--no-warn
+endif
 AFLAGS_iwmmxt.o			:= -Wa,-mcpu=iwmmxt
 obj-$(CONFIG_ARM_CPU_TOPOLOGY)  += topology.o
 obj-$(CONFIG_ARM_USE_USER_ACCESSIBLE_TIMERS)	+= user_accessible_timer.o
