@@ -699,7 +699,18 @@ CLANG_FLAGS     += $(call cc-option, -Wno-tautological-compare)
 KBUILD_CFLAGS   += $(CLANG_FLAGS)
 KBUILD_AFLAGS   += $(CLANG_FLAGS)
 export CLANG_FLAGS
-KBUILD_CFLAGS   += -Os
+# Low inlining/unrolling limits (from bandido-lineageos): smaller hot paths,
+# less I-cache pressure (Krait has a 16 KB L1 I-cache)
+LLVMPARAMS := \
+  -mllvm -inlinecold-threshold=12 \
+  -mllvm -inline-threshold=80 \
+  -mllvm -inlinehint-threshold=200 \
+  -mllvm -inline-cold-callsite-threshold=12 \
+  -mllvm -locally-hot-callsite-threshold=350 \
+  -mllvm -hot-callsite-threshold=1000 \
+  -mllvm -inline-enable-cost-benefit-analysis=true \
+  -mllvm -unroll-threshold=50
+KBUILD_CFLAGS   += -Os $(LLVMPARAMS)
 BOPTS += -O2
 endif
 
