@@ -56,6 +56,7 @@
 struct secondary_data secondary_data;
 
 enum ipi_msg_type {
+	IPI_WAKEUP = 0,		/* SGI0: msm boot_secondary() wakeup */
 	IPI_CPU_START = 1,
 	IPI_TIMER = 2,
 	IPI_RESCHEDULE,
@@ -700,6 +701,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		__inc_irq_stat(cpu, ipi_irqs[ipinr - IPI_CPU_START]);
 
 	switch (ipinr) {
+	case IPI_WAKEUP:
 	case IPI_CPU_START:
 		/* Wake up from WFI/WFE using SGI */
 		break;
