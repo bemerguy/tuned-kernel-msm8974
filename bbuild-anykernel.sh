@@ -1,39 +1,61 @@
 #!/bin/bash
-#path to gcc toolchain
-TOOLCHAIN="arm-linux-gnueabihf-"
+#
+# Build the Tuned kernel and pack an AnyKernel3 zip in dist/.
+#
+# usage: ./bbuild-anykernel.sh <variant>
+#   variants: klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr
+#
+# optional environment:
+#   LLVM=0       build with GCC (arm-linux-gnueabihf-) instead of clang
+#   NUM_CPUS=N   parallel jobs (default: nproc - 1)
+#   NO_CCACHE=1  don't use ccache
+#   FLASH=0      don't offer to install the zip over adb/TWRP
 
-# clang by default; LLVM=0 ./bbuild-anykernel.sh <variant> to build with GCC
-export LLVM=${LLVM:-1}
+set -o pipefail
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-if [ "$LLVM" = "1" ]; then
-TOOLCHAIN="/home/me/kernelupgrade/toolchains/llvm-23.1.0-x86_64/bin/"
-export PATH="$TOOLCHAIN:$PATH"
-fi
-
-export ARCH=arm
-
-#######################################
-#do not change anything below this if you dont know what youre doing
-VAR="$1"
-
-FILENAME="tuned-$VAR-$(date +"%Y%m%d%H%M")"
-
-COMPILE_DTB="y"
-DTBTOOL="dtbToolCM"
-DTBTOOL_CMD="-2"
-
+VARIANTS="klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr"
 DEFCONFIG="lineage_klte_pn547_defconfig"
+TOOLCHAINS="$(readlink -f ../toolchains)"
+CLANG_DIR="$TOOLCHAINS/llvm-23.1.0-x86_64/bin"
+DTBTOOL="tools_boeffla/dtbToolCM"
 
 COLOR_RED="\033[0;31m"
 COLOR_GREEN="\033[1;32m"
 COLOR_NEUTRAL="\033[0m"
 
-if [ -z "$NUM_CPUS" ]; then
-	NUM_CPUS=$(($(nproc) - 1))
+step() { echo -e "${COLOR_GREEN}\n$*\n${COLOR_NEUTRAL}"; }
+die()  { echo -e "${COLOR_RED}\n$*\n${COLOR_NEUTRAL}" >&2; exit 1; }
+
+#######################################
+# arguments and toolchain
+
+VAR="$1"
+if [ -z "$VAR" ] || ! echo " $VARIANTS " | grep -q " $VAR "; then
+	echo "usage: $0 <variant>" >&2
+	echo "variants: $VARIANTS" >&2
+	exit 1
 fi
 
-export CROSS_COMPILE="$TOOLCHAIN"
+FILENAME="tuned-$VAR-$(date +"%Y%m%d%H%M")"
+NUM_CPUS=${NUM_CPUS:-$(($(nproc) - 1))}
 
+export ARCH=arm
+export LLVM=${LLVM:-1}
+if [ "$LLVM" = "1" ]; then
+	[ -x "$CLANG_DIR/clang" ] || die "clang not found in $CLANG_DIR"
+	export PATH="$CLANG_DIR:$PATH"
+	export CROSS_COMPILE="$CLANG_DIR/"
+	CC_BIN="clang"
+else
+	export CROSS_COMPILE="arm-linux-gnueabihf-"
+	CC_BIN="${CROSS_COMPILE}gcc"
+fi
+
+MAKE_ARGS=(O=out ARCH=arm CONFIG_NO_ERROR_ON_MISMATCH=y)
+if [ "${NO_CCACHE:-0}" != "1" ] && command -v ccache >/dev/null; then
+	MAKE_ARGS+=(CC="ccache $CC_BIN")
+fi
 
 #####################
 # internal functions
@@ -41,12 +63,10 @@ export CROSS_COMPILE="$TOOLCHAIN"
 
 step2_make_config()
 {
-	echo -e $COLOR_GREEN"\n2 - make config\n"$COLOR_NEUTRAL
-	echo
+	step "2 - make config"
 
 	mkdir -p out
-	MAKESTRING="O=out ARCH=arm olddefconfig"
-        cp arch/arm/configs/$DEFCONFIG out/.config
+	cp arch/arm/configs/$DEFCONFIG out/.config
 
 case "$VAR" in
         klte)
@@ -198,124 +218,91 @@ CONFIG_MACH_KACTIVELTE_EUR=y
 
 esac
 
-	echo "Makestring: $MAKESTRING"
-	make $MAKESTRING
+	make "${MAKE_ARGS[@]}" olddefconfig || die "make olddefconfig failed"
 }
 
 step3_compile()
 {
-	echo -e $COLOR_GREEN"\n3 - compile\n"$COLOR_NEUTRAL
+	step "3 - compile (${CC_BIN}, -j$NUM_CPUS${MAKE_ARGS[3]:+, ccache})"
 
-	TIMESTAMP1=$(date +%s)
+	local t0=$(date +%s)
 
-        # remove a previous kernel image
-        rm -rf out/arch/arm/boot &>/dev/null
-	rm anykernel_boeffla/zImage &>/dev/null
-	rm anykernel_boeffla/dt &>/dev/null
+	# no 'rm -rf out/arch/arm/boot': keep the build incremental and detect
+	# failures from make's exit status instead
+	rm -f anykernel_boeffla/zImage anykernel_boeffla/dt
 
-	make -j$NUM_CPUS O=out CONFIG_NO_ERROR_ON_MISMATCH=y 2>&1 |tee ../compile.log
+	make "${MAKE_ARGS[@]}" -j"$NUM_CPUS" 2>&1 | tee ../compile.log
+	[ ${PIPESTATUS[0]} -eq 0 ] && [ -e out/arch/arm/boot/zImage ] ||
+		die "Compile was NOT successful !! Aborting. (see ../compile.log)"
 
-       # if kernel image does not exist, exit processing
-       if [ ! -e out/arch/arm/boot/zImage ]; then
-               echo -e $COLOR_RED
-               echo ""
-               echo "Compile was NOT successful !! Aborting."
-               echo ""
-               echo -e $COLOR_NEUTRAL
-               exit
-       fi
+	echo -e ">>> compiling DTB\n"
+	[ -x "$DTBTOOL" ] || chmod +x "$DTBTOOL"
+	"$DTBTOOL" -2 -o out/arch/arm/boot/dt.img -s 2048 -p out/scripts/dtc/ out/arch/arm/boot/ ||
+		die "dtbTool failed"
 
-	# compile dtb if required
-	if [ "y" == "$COMPILE_DTB" ]; then
-		echo -e ">>> compiling DTB\n"
-		echo
-
-		chmod 777 tools_boeffla/$DTBTOOL
-		tools_boeffla/$DTBTOOL $DTBTOOL_CMD -o out/arch/arm/boot/dt.img -s 2048 -p out/scripts/dtc/ out/arch/arm/boot/
-	fi
-
-	TIMESTAMP2=$(date +%s)
-
-	# Log compile time (screen output)
-	echo "compile time:" $(($TIMESTAMP2 - $TIMESTAMP1)) "seconds"
-
+	echo "compile time: $(( $(date +%s) - t0 )) seconds," \
+	     "warnings: $(grep -c 'warning:' ../compile.log)"
 }
 
 step4_prepare_anykernel()
 {
-	echo -e $COLOR_GREEN"\n4 - prepare anykernel\n"$COLOR_NEUTRAL
+	step "4 - prepare anykernel"
 
-	# copy kernel image
-	cp out/arch/arm/boot/zImage anykernel_boeffla/zImage
-
-	# copy dtb (if we have one)
-	if [ "y" == "$COMPILE_DTB" ]; then
-		cp out/arch/arm/boot/dt.img anykernel_boeffla/dt
-	fi
-
+	cp out/arch/arm/boot/zImage anykernel_boeffla/zImage &&
+	cp out/arch/arm/boot/dt.img anykernel_boeffla/dt ||
+		die "copying zImage/dt failed"
 }
 
 step5_create_anykernel_zip()
 {
-	echo -e $COLOR_GREEN"\n5 - create anykernel zip\n"$COLOR_NEUTRAL
+	step "5 - create anykernel zip"
 
-	# Creating recovery flashable zip
-	echo -e ">>> create flashable zip\n"
-
-	cd anykernel_boeffla
-
-	# create zip file
-	mkdir -p ../dist
-
-	rm ../dist/$FILENAME.zip &>/dev/null
-	zip -r9 ../dist/$FILENAME.zip *
-
-if [[ "$(ps -o comm= -p $PPID 2>/dev/null)" =~ (bash|zsh|sh) ]]; then
-        while true; do
-                adb start-server >/dev/null 2>&1
-                STATE=$(adb get-state 2>&1)
-
-                if [[ $STATE == "device" ]]; then
-                        MODE=$(adb shell getprop sys.boot_completed 2>/dev/null)
-
-                        if [[ $MODE -eq 1 ]]; then
-                                echo -e "\a"
-                                echo "Device is connected but not in recovery mode."
-                                read -p "Press Enter to reboot to recovery mode..."
-                                adb reboot recovery
-                                echo "Rebooting to recovery mode..."
-                                REBOOT=1
-                        fi
-                elif [[ $STATE == "recovery" ]]; then
-                        echo "Device is in recovery mode."
-                        break
-                else
-                        echo "No devices or emulators found. Retrying in 5 seconds..."
-                        if [[ $REBOOT -ne 1 ]]; then
-                                echo -e "\a"
-                        fi
-                        sleep 5
-                fi
-        done
-
-        adb push ../dist/$FILENAME.zip /external_sd/
-fi
+	mkdir -p dist
+	rm -f dist/$FILENAME.zip
+	(cd anykernel_boeffla && zip -qr9 ../dist/$FILENAME.zip *) || die "zip failed"
+	echo "dist/$FILENAME.zip ($(du -h dist/$FILENAME.zip | cut -f1))"
 }
 
+step6_flash()
+{
+	# only when run from a terminal
+	[ "${FLASH:-1}" = "1" ] && [ -t 0 ] || return 0
+	command -v adb >/dev/null || return 0
+
+	local state reboot=0
+	while true; do
+		adb start-server >/dev/null 2>&1
+		state=$(adb get-state 2>&1)
+		if [ "$state" = "recovery" ]; then
+			echo "Device is in recovery mode."
+			break
+		elif [ "$state" = "device" ]; then
+			if [ "$(adb shell getprop sys.boot_completed 2>/dev/null)" = "1" ]; then
+				echo -e "\a"
+				read -p "Device is booted. Press Enter to reboot to recovery and flash (Ctrl+C to skip)..."
+				adb reboot recovery
+				echo "Rebooting to recovery mode..."
+				reboot=1
+			fi
+		else
+			echo "No devices found. Retrying in 5 seconds... (Ctrl+C to skip)"
+			[ $reboot -eq 1 ] || echo -e "\a"
+		fi
+		sleep 5
+	done
+
+	adb push dist/$FILENAME.zip /sdcard/ &&
+	adb shell twrp install /sdcard/$FILENAME.zip
+}
 
 ################
 # main function
 ################
 
-if [ "$#" -eq 0 ]; then
-    echo "Error: bbuild-anykernel.sh must be called with at least one argument." >&2
-    echo "Try any of these: klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr" >&2
-    exit 1
-fi
-
+T0=$(date +%s)
 step2_make_config
 step3_compile
 step4_prepare_anykernel
 step5_create_anykernel_zip
-
-echo "Done. Check 'dist' folder"
+echo "total: $(( $(date +%s) - T0 )) seconds. Check 'dist' folder"
+step6_flash
