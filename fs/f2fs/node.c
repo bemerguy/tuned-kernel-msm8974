@@ -1119,7 +1119,8 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	rcu_read_lock();
 	apage = radix_tree_lookup(&NODE_MAPPING(sbi)->page_tree, nid);
 	rcu_read_unlock();
-	if (apage)
+	/* a shadow entry of an evicted node page: read it ahead again */
+	if (apage && !radix_tree_exceptional_entry(apage))
 		return;
 
 	apage = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
