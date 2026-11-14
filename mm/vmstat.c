@@ -726,6 +726,7 @@ const char * const vmstat_text[] = {
 #endif
 	"workingset_refault",
 	"workingset_activate",
+	"workingset_nodereclaim",
 	"nr_anon_transparent_hugepages",
 	"nr_free_cma",
 #if defined(CONFIG_CMA_PAGE_COUNTING)
