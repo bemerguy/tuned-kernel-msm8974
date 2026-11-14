@@ -32,7 +32,12 @@ static int cfq_slice_async = 7;
 static const int cfq_slice_async_rq = 2;
 static int cfq_slice_idle = 0;
 static int cfq_group_idle = 0;
-static const int cfq_target_latency = 300; /* 300 ms */
+/*
+ * In jiffies: 1 s at HZ=300, not the 300 ms the old comment claimed.
+ * Measured on klte (cold app launches with background writes): 300 ms
+ * was no better and up to 18% slower for heavy apps, so it stays.
+ */
+static const int cfq_target_latency = 300;
 static const int cfq_hist_divisor = 4;
 
 /*

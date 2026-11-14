@@ -23,6 +23,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
@@ -1077,6 +1078,20 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 
 	if (!q->elevator)
 		return count;
+
+	/*
+	 * Keep the kernel's default scheduler against the ROM: init.rc
+	 * "write" commands are run by init itself (tgid 1). Writes from any
+	 * other process (apps, su shells) still switch the scheduler.
+	 */
+	if (task_tgid_nr(current) == 1) {
+		char req[ELV_NAME_MAX];
+
+		strlcpy(req, name, sizeof(req));
+		pr_notice("elevator: ignoring init's switch to %s, keeping %s\n",
+			strstrip(req), q->elevator->type->elevator_name);
+		return count;
+	}
 
 	ret = __elevator_change(q, name);
 	if (!ret)
