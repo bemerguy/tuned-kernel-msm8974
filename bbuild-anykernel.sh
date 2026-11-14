@@ -290,8 +290,9 @@ step6_flash()
 		fi
 		sleep 5
 	done
-
-	adb push dist/$FILENAME.zip /sdcard/ &&
+	sleep 1
+	adb push dist/$FILENAME.zip /sdcard/
+	sleep 1
 	adb shell twrp install /sdcard/$FILENAME.zip
 }
 
