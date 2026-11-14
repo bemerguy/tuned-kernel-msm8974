@@ -17,7 +17,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 VARIANTS="klte klteduos kltedv kltekor kltechn kltekdi klteactive kltespr"
 DEFCONFIG="lineage_klte_pn547_defconfig"
 TOOLCHAINS="$(readlink -f ../toolchains)"
-CLANG_DIR="$TOOLCHAINS/llvm-23.1.0-x86_64/bin"
+CLANG_DIR="$TOOLCHAINS/llvm-23.1.5-x86_64/bin"
 DTBTOOL="tools_boeffla/dtbToolCM"
 
 COLOR_RED="\033[0;31m"
