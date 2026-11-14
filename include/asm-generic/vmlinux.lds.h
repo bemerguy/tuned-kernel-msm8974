@@ -156,9 +156,26 @@
 	*(.dtb.init.rodata)						\
 	VMLINUX_SYMBOL(__dtb_end) = .;
 
+/*
+ * LTO code generation (ld.lld) always emits function/data sections, so
+ * collect .text.<sym>, .data.<sym> and .bss.<sym> with their parents
+ * instead of leaving them as orphans (which lld places after .exit.text,
+ * inside the init region freed by free_initmem()). Patterns skip the
+ * kernel's own ".data..foo" style sections, matching upstream.
+ */
+#ifdef CONFIG_LTO_CLANG
+#define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
+#define DATA_MAIN .data .data.[0-9a-zA-Z_]* .data..L* .data..compoundliteral*
+#define BSS_MAIN .bss .bss.[0-9a-zA-Z_]* .bss..compoundliteral*
+#else
+#define TEXT_MAIN .text
+#define DATA_MAIN .data
+#define BSS_MAIN .bss
+#endif
+
 /* .data section */
 #define DATA_DATA							\
-	*(.data)							\
+	*(DATA_MAIN)							\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
 	DEV_KEEP(init.data)						\
@@ -393,7 +410,7 @@
  * during second ld run in second ld pass when generating System.map */
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
-		*(.text.hot .text .text.fixup .text.unlikely)		\
+		*(.text.hot TEXT_MAIN .text.fixup .text.unlikely)		\
 		*(.ref.text)						\
 	DEV_KEEP(init.text)						\
 	DEV_KEEP(exit.text)						\
@@ -534,7 +551,7 @@
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {				\
 		*(.bss..page_aligned)					\
 		*(.dynbss)						\
-		*(.bss)							\
+		*(BSS_MAIN)						\
 		*(COMMON)						\
 	}
 

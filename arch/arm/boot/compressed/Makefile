@@ -130,6 +130,9 @@ ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
+# the decompressor is linked on its own (position independent): no LTO
+KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO),$(KBUILD_CFLAGS))
+
 ccflags-y := -fpic -fno-builtin -I$(obj)
 
 # Supply kernel BSS size to the decompressor via a linker symbol.

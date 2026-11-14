@@ -12,6 +12,8 @@ CFLAGS_REMOVE_patch.o = -pg
 endif
 
 CFLAGS_REMOVE_return_address.o = -pg
+# file-scope asm defines local labels used from C: keep it out of LTO
+CFLAGS_REMOVE_process.o += $(CC_FLAGS_LTO)
 
 # Object file lists.
 

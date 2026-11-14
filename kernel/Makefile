@@ -3,6 +3,10 @@
 #
 subdir-ccflags-y += $(BOPTS)
 
+# cond_syscall() makes weak aliases in file-scope asm; inside the LTO module
+# they collide with the real (global) definitions. Keep it an ELF object.
+CFLAGS_REMOVE_sys_ni.o += $(CC_FLAGS_LTO)
+
 obj-y     = fork.o exec_domain.o panic.o printk.o \
 	    cpu.o exit.o itimer.o time.o softirq.o resource.o \
 	    sysctl.o sysctl_binary.o capability.o ptrace.o timer.o user.o \

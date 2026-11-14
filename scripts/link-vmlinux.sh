@@ -41,6 +41,24 @@ info()
 # ${1} output file
 modpost_link()
 {
+	local objs o
+
+	if [ -n "${CONFIG_LTO_CLANG}" ]; then
+		# LTO happens here, once: built-in.o files are thin archives
+		# of bitcode and must be included whole; lib.a stays lazy.
+		# Keep the original link order (it decides the initcall order).
+		objs=""
+		for o in ${KBUILD_VMLINUX_MAIN}; do
+			case ${o} in
+			*.a) objs="${objs} --no-whole-archive ${o} --whole-archive" ;;
+			*) objs="${objs} ${o}" ;;
+			esac
+		done
+		${LD} ${LDFLAGS} -r -o ${1} --whole-archive                   \
+			${KBUILD_VMLINUX_INIT} --start-group ${objs}          \
+			--end-group --no-whole-archive
+		return
+	fi
 	${LD} ${LDFLAGS} -r -o ${1} ${KBUILD_VMLINUX_INIT}                   \
 		--start-group ${KBUILD_VMLINUX_MAIN} --end-group
 }
@@ -52,7 +70,11 @@ vmlinux_link()
 {
 	local lds="${objtree}/${KBUILD_LDS}"
 
-	if [ "${SRCARCH}" != "um" ]; then
+	if [ -n "${CONFIG_LTO_CLANG}" ]; then
+		# vmlinux.o is already LTO-optimized native code
+		${LD} ${LDFLAGS} ${LDFLAGS_vmlinux} -o ${2}                  \
+			-T ${lds} vmlinux.o ${1}
+	elif [ "${SRCARCH}" != "um" ]; then
 		${LD} ${LDFLAGS} ${LDFLAGS_vmlinux} -o ${2}                  \
 			-T ${lds} ${KBUILD_VMLINUX_INIT}                     \
 			--start-group ${KBUILD_VMLINUX_MAIN} --end-group ${1}
