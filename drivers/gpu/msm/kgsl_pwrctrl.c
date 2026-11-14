@@ -1077,12 +1077,14 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	/* Initialize the user and thermal clock constraints */
 
 	pwr->max_pwrlevel = 0;
-	pwr->min_pwrlevel = pdata->num_levels - 2;
+	pwr->min_pwrlevel = pdata->min_level ? pdata->min_level :
+						pdata->num_levels - 2;
 	pwr->thermal_pwrlevel = 0;
 
-	pwr->active_pwrlevel = pdata->init_level;
-	pwr->default_pwrlevel = pdata->init_level;
-	pwr->init_pwrlevel = pdata->init_level;
+	pwr->active_pwrlevel = min_t(unsigned int, pdata->init_level,
+				      pwr->min_pwrlevel);
+	pwr->default_pwrlevel = pwr->active_pwrlevel;
+	pwr->init_pwrlevel = pwr->active_pwrlevel;
 	for (i = 0; i < pdata->num_levels; i++) {
 		pwr->pwrlevels[i].gpu_freq =
 		(pdata->pwrlevel[i].gpu_freq > 0) ?

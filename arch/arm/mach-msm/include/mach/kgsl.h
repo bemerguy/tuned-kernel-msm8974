@@ -77,6 +77,8 @@ struct kgsl_pwrlevel {
 struct kgsl_device_platform_data {
 	struct kgsl_pwrlevel pwrlevel[KGSL_MAX_PWRLEVELS];
 	int init_level;
+	/* default lowest-frequency level (min_pwrlevel); 0 = num_levels - 2 */
+	int min_level;
 	int num_levels;
 	int (*set_grp_async)(void);
 	unsigned int idle_timeout;

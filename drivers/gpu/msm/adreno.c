@@ -1632,6 +1632,12 @@ static int adreno_of_get_pwrlevels(struct device_node *parent,
 		pdata->init_level = 1;
 	}
 
+	/* optional: default floor for min_pwrlevel (still writable in sysfs) */
+	if (of_property_read_u32(parent, "qcom,min-pwrlevel",
+			(unsigned int *)&pdata->min_level) ||
+	    pdata->min_level < 1 || pdata->min_level > pdata->num_levels - 2)
+		pdata->min_level = 0;
+
 	ret = 0;
 done:
 	return ret;

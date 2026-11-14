@@ -1705,7 +1705,9 @@
 	qcom,chipid = <0x03030002>;
 	qcom,msm-bus,num-cases = <18>;
 //	qcom,bus-control;
-	qcom,initial-pwrlevel = <8>;
+	qcom,initial-pwrlevel = <6>;
+	/* don't run UI below 320 MHz: lower levels miss vsync while scrolling */
+	qcom,min-pwrlevel = <6>;
 
 	/* Updated bus bandwidth requirements */
 	qcom,msm-bus,vectors-KBps =
