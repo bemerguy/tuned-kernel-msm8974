@@ -47,15 +47,24 @@ PATCH_VBMETA_FLAG=auto;
 . tools/ak3-core.sh;
 
 # boot install
+# The installed kernel is a zImage, which magiskboot treats as "zImage +
+# compressed payload": on unpack it guesses the payload format by searching
+# for compression magics (a false match aborts with "Splitting image
+# failed"), and on repack it would recompress our new zImage inside the OLD
+# kernel's decompressor (or silently keep the old kernel if it doesn't fit).
+# So unpack a copy of the partition with the zImage magic (0x24) cleared:
+# magiskboot then sees a raw kernel and writes our zImage as-is.
+REALBLOCK=$BLOCK;
+dd if=$REALBLOCK of=$AKHOME/boot-src.img bs=1048576 || abort "Dumping image failed. Aborting...";
+pagesize=$(od -An -tu4 -j36 -N4 $AKHOME/boot-src.img | tr -d ' ');
+if [ "$(od -An -tx1 -j$((pagesize + 36)) -N4 $AKHOME/boot-src.img | tr -d ' \n')" = "18286f01" ]; then
+  printf '\0\0\0\0' | dd of=$AKHOME/boot-src.img bs=1 seek=$((pagesize + 36)) conv=notrunc 2>/dev/null;
+fi;
+BLOCK=$AKHOME/boot-src.img;
+
 dump_boot; # use split_boot to skip ramdisk unpack, e.g. for devices with init_boot ramdisk
 
-# The stock kernel here is a zImage, so magiskboot would recompress our new
-# zImage inside the OLD kernel's decompressor (and silently keep the old
-# kernel if that does not fit). Clear the zImage magic (0x24) of the kernel
-# in the template image so magiskboot writes our zImage as-is.
-pagesize=$(od -An -tu4 -j36 -N4 $BOOTIMG | tr -d ' ');
-printf '\0\0\0\0' | dd of=$BOOTIMG bs=1 seek=$((pagesize + 36)) conv=notrunc 2>/dev/null;
-
+BLOCK=$REALBLOCK;
 write_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
 ## end boot install
 
