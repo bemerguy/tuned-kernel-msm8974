@@ -597,14 +597,14 @@ static void krait_update_uv(int *uv, int num, int boost_uv)
 	};
 
 	if (enable_boost) {
-		for (i = 0; i < num; i++) {
-#if defined(CONFIG_MACH_KLTE_CHN)
-			// case 01545727 msm8974pro should not exceed 1120000 cf. msm8974 v2.x should not exceed 1100000.
-			uv[i] = min(1120000, boost_uv+uv[i]);
-#else
+		/*
+		 * Samsung capped KLTE_CHN at 1.12 V here (Qualcomm case
+		 * 01545727), which left the overclocked rows of the voltage
+		 * tables up to 80 mV short. The tables are what was validated
+		 * for overclocking: apply the boost like every other variant.
+		 */
+		for (i = 0; i < num; i++)
 			uv[i] += boost_uv;
-#endif
-		}
 	}
 }
 
