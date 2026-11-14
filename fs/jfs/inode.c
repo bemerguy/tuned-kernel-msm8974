@@ -153,7 +153,7 @@ void jfs_evict_inode(struct inode *inode)
 		dquot_initialize(inode);
 
 		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
-			truncate_inode_pages(&inode->i_data, 0);
+			truncate_inode_pages_final(&inode->i_data);
 
 			if (test_cflag(COMMIT_Freewmap, inode))
 				jfs_free_zero_link(inode);
@@ -167,7 +167,7 @@ void jfs_evict_inode(struct inode *inode)
 			dquot_free_inode(inode);
 		}
 	} else {
-		truncate_inode_pages(&inode->i_data, 0);
+		truncate_inode_pages_final(&inode->i_data);
 	}
 	end_writeback(inode);
 	dquot_drop(inode);

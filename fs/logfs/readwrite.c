@@ -2174,7 +2174,7 @@ void logfs_evict_inode(struct inode *inode)
 			do_delete_inode(inode);
 		}
 	}
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	end_writeback(inode);
 
 	/* Cheaper version of write_inode.  All changes are concealed in

@@ -502,6 +502,8 @@ EXPORT_SYMBOL(__remove_inode_hash);
 
 void end_writeback(struct inode *inode)
 {
+	unsigned long nrshadows;
+
 	might_sleep();
 	/*
 	 * We have to cycle tree_lock here because reclaim can be still in the
@@ -510,7 +512,16 @@ void end_writeback(struct inode *inode)
 	 */
 	spin_lock_irq(&inode->i_data.tree_lock);
 	BUG_ON(inode->i_data.nrpages);
+	nrshadows = inode->i_data.nrshadows;
 	spin_unlock_irq(&inode->i_data.tree_lock);
+	/*
+	 * An ->evict_inode() that still uses truncate_inode_pages() instead
+	 * of truncate_inode_pages_final() can leave shadow entries behind.
+	 * With no pages left, reclaim cannot plant new ones: drop them here,
+	 * the shadow node shrinker must never see a freed mapping.
+	 */
+	if (unlikely(nrshadows))
+		truncate_inode_pages_final(&inode->i_data);
 	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);
@@ -555,8 +566,7 @@ static void evict(struct inode *inode)
 	if (op->evict_inode) {
 		op->evict_inode(inode);
 	} else {
-		if (inode->i_data.nrpages)
-			truncate_inode_pages(&inode->i_data, 0);
+		truncate_inode_pages_final(&inode->i_data);
 		end_writeback(inode);
 	}
 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)

@@ -241,7 +241,7 @@ static int debugfs_show_options(struct seq_file *m, struct dentry *root)
 
 static void debugfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	end_writeback(inode);
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_private);
