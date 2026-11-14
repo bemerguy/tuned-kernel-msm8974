@@ -69,6 +69,27 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 }
 EXPORT_SYMBOL(vfs_fstat);
 
+/*
+ * Tuned: hide some vendor daemons from init, which stat()s a service's
+ * binary before starting it. Match the resolved dentry (kernel memory):
+ * '<bin dir>/mpdecision' or '<bin dir>/thermal-engine', so /vendor/bin,
+ * /system/vendor/bin (where the /vendor symlink resolves) and /system/bin
+ * all match. The old check strcmp()ed the __user filename directly.
+ */
+static bool tuned_blocked_binary(const struct path *path)
+{
+	const char *name = (const char *)path->dentry->d_name.name;
+	struct dentry *parent;
+	bool blocked;
+
+	if (strcmp(name, "mpdecision") && strcmp(name, "thermal-engine"))
+		return false;
+	parent = dget_parent(path->dentry);
+	blocked = !strcmp((const char *)parent->d_name.name, "bin");
+	dput(parent);
+	return blocked;
+}
+
 int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 		int flag)
 {
@@ -90,15 +111,12 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
 		goto out;
 
 	error = vfs_getattr(path.mnt, path.dentry, stat);
-	path_put(&path);
-
-        if (filename && (!strcmp(filename, "/vendor/bin/mpdecision") ||
-           !strcmp(filename, "/vendor/bin/thermal-engine") ||
-           !strcmp(filename, "/system/bin/mpdecision") ||
-           !strcmp(filename, "/system/bin/thermal-engine"))) {
-                printk("Tuned: Blocking %s (%d)\n", filename, error);
+	if (tuned_blocked_binary(&path)) {
+		pr_info("Tuned: Blocking %s (%d)\n",
+			path.dentry->d_name.name, error);
 		error = -EINVAL;
-        }
+	}
+	path_put(&path);
 out:
 	return error;
 }
