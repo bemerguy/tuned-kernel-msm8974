@@ -335,9 +335,22 @@ config GENERIC_TIME_VSYSCALL
 	  Enables updating the kernel user helper area with the xtime struct
 	  data for gettimeofday via kernel user helpers.
 
+config VDSO
+	bool "Enable VDSO for acceleration of some system calls"
+	depends on AEABI && MMU && CPU_V7 && ARM_ARCH_TIMER
+	default y
+	select GENERIC_TIME_VSYSCALL
+	select ARM_ARCH_TIMER_VCT_ACCESS
+	help
+	  Place in the process address space an ELF shared object
+	  providing fast implementations of gettimeofday and
+	  clock_gettime, reading the architected timer's virtual counter
+	  from user space. Systems that implement the ARM architected
+	  timer will receive maximum benefit.
+
 config ARM_USE_USER_ACCESSIBLE_TIMERS
 	bool "Enables mapping a timer counter page to user space"
-	depends on USE_USER_ACCESSIBLE_TIMERS && GENERIC_TIME_VSYSCALL
+	depends on USE_USER_ACCESSIBLE_TIMERS && GENERIC_TIME_VSYSCALL && !VDSO
 	help
 	 Enables ARM-specific user-accessible timers via a shared
 	 memory page containing the cycle counter.

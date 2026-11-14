@@ -34,6 +34,7 @@
 #include <linux/cpuidle.h>
 #include <linux/console.h>
 
+#include <asm/vdso.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/thread_notify.h>
@@ -738,6 +739,14 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 		return "[sigpage]";
 	else if (vma == get_user_timers_vma(NULL))
 		return "[timers]";
+#ifdef CONFIG_VDSO
+	else if (vma->vm_mm && vma->vm_mm->context.vdso &&
+		 vma->vm_start == vma->vm_mm->context.vdso)
+		return "[vdso]";
+	else if (vma->vm_mm && vma->vm_mm->context.vdso &&
+		 vma->vm_start == vma->vm_mm->context.vdso - PAGE_SIZE)
+		return "[vvar]";
+#endif
 	else
 		return NULL;
 }
@@ -749,6 +758,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
+	unsigned long npages;
 	int ret;
 
 	if (!signal_page)
@@ -756,8 +766,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!signal_page)
 		return -ENOMEM;
 
+	/* sigpage, then the vDSO data and text pages right after it */
+	npages = 1 + vdso_total_pages;
+
 	down_write(&mm->mmap_sem);
-	addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
+	addr = get_unmapped_area(NULL, 0, npages << PAGE_SHIFT, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
@@ -767,8 +780,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
 		&signal_page);
 
-	if (ret == 0)
+	if (ret == 0) {
 		mm->context.sigpage = addr;
+		arm_install_vdso(mm, addr + PAGE_SIZE);
+	}
 
  up_fail:
 	up_write(&mm->mmap_sem);
