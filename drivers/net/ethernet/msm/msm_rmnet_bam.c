@@ -68,6 +68,7 @@ MODULE_PARM_DESC(msm_rmnet_bam_headroom_check_failure,
 
 #define DEVICE_ID_INVALID   -1
 
+#define DEVICE_OPENING       3
 #define DEVICE_INACTIVE      2
 #define DEVICE_ACTIVE        1
 #define DEVICE_UNINITIALIZED 0
@@ -425,12 +426,23 @@ static int __rmnet_open(struct net_device *dev)
 
 	DBG0("[%s] __rmnet_open()\n", dev->name);
 
+	/*
+	 * RTNL is dropped below around platform_driver_register(), so another
+	 * dev_open() of this device can get here before IFF_UP is set. Without
+	 * this state it registered the same driver again: -EEXIST, or an oops
+	 * in kset_find_obj() on the half-registered driver (boot-time panic).
+	 */
+	if (p->device_up == DEVICE_OPENING)
+		return -EBUSY;
+
 	if (p->device_up == DEVICE_UNINITIALIZED) {
+		p->device_up = DEVICE_OPENING;
 		r = msm_bam_dmux_open(p->ch_id, dev, bam_notify);
 
 		if (r < 0) {
 			DBG0("%s: ch=%d failed with rc %d\n",
 					__func__, p->ch_id, r);
+			p->device_up = DEVICE_UNINITIALIZED;
 			return -ENODEV;
 		}
 
@@ -441,6 +453,7 @@ static int __rmnet_open(struct net_device *dev)
 			pr_err("%s: bam pdev registration failed n=%d rc=%d\n",
 					__func__, p->ch_id, r);
 			msm_bam_dmux_close(p->ch_id);
+			p->device_up = DEVICE_UNINITIALIZED;
 			return r;
 		}
 	}
