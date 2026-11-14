@@ -25,6 +25,55 @@
 static DEFINE_SPINLOCK(tz_lock);
 
 /*
+ * Kernel-side GPU DCVS ("simple" algorithm). The TrustZone algorithm kept
+ * the GPU at its lowest levels during UI work: launcher frames needed ~25 ms
+ * of GPU time at 133 MHz, so most frames missed vsync. Instead, pick the
+ * lowest level that keeps the GPU at most simple_target_load % busy: go up
+ * at once, go down one level after simple_down_delay consecutive samples
+ * asking for less. simple_gpu_active=0 restores the TrustZone algorithm.
+ */
+static unsigned int simple_gpu_active = 1;
+module_param(simple_gpu_active, uint, 0644);
+static unsigned int simple_target_load = 50;
+module_param(simple_target_load, uint, 0644);
+static unsigned int simple_down_delay = 4;
+module_param(simple_down_delay, uint, 0644);
+static unsigned int simple_down_count;
+
+static int simple_gpu_level(struct devfreq *devfreq, int level,
+			    s64 busy_time, s64 total_time)
+{
+	unsigned int *table = devfreq->profile->freq_table;
+	unsigned int target_load = max(simple_target_load, 1u);
+	unsigned int load;
+	u64 need;
+	int i;
+
+	load = (unsigned int)div64_s64(busy_time * 100, total_time);
+	if (load > 100)
+		load = 100;
+	need = div_u64((u64)table[level] * load, target_load);
+
+	/* lowest frequency (highest index; index 0 is the fastest) >= need */
+	for (i = devfreq->profile->max_state - 1; i > 0; i--)
+		if (table[i] >= need)
+			break;
+
+	if (i < level) {
+		simple_down_count = 0;
+		return i;
+	}
+	if (i > level) {
+		if (++simple_down_count < simple_down_delay)
+			return level;
+		simple_down_count = 0;
+		return level + 1;
+	}
+	simple_down_count = 0;
+	return level;
+}
+
+/*
  * FLOOR is 5msec to capture up to 3 re-draws
  * per frame for 60fps content.
  */
@@ -140,7 +189,10 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	 * If there is an extended block of busy processing,
 	 * increase frequency.  Otherwise run the normal algorithm.
 	 */
-	if (priv->bin.busy_time > CEILING) {
+	if (simple_gpu_active) {
+		val = simple_gpu_level(devfreq, level, priv->bin.busy_time,
+				       priv->bin.total_time) - level;
+	} else if (priv->bin.busy_time > CEILING) {
 		val = -1 * level;
 	} else {
 		val = __secure_tz_entry3(TZ_UPDATE_ID,
