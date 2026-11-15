@@ -71,6 +71,22 @@ static struct mutex gov_lock;
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static unsigned int hispeed_freq = 1267200;
 
+/*
+ * While a CPU is running threads that draw frames (task_is_ui()), do not
+ * let it go below draw_floor_freq; the hold covers draw_hold_ms after the
+ * last UI context switch on that CPU. draw_floor_freq = 0 disables it.
+ */
+static unsigned int draw_floor_freq = 1267200;
+static unsigned int draw_hold_ms = 64;
+
+static bool cpu_is_drawing(int cpu)
+{
+	unsigned long last = per_cpu(sched_ui_last_run, cpu);
+
+	return draw_floor_freq && last &&
+		time_before(jiffies, last + msecs_to_jiffies(draw_hold_ms));
+}
+
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 90
 static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
@@ -753,6 +769,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 				new_freq = sync_freq;
 		}
 	}
+
+	if (new_freq < draw_floor_freq && cpu_is_drawing(data))
+		new_freq = draw_floor_freq;
 
 	if (pcpu->policy->cur >= hispeed_freq &&
 	    new_freq > pcpu->policy->cur &&
@@ -1726,7 +1745,51 @@ time(single_enter_time, single_enter_time_attr);
 time(single_exit_time, single_exit_time_attr);
 
 #endif
+static ssize_t show_draw_floor_freq(struct kobject *kobj,
+				    struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", draw_floor_freq);
+}
+
+static ssize_t store_draw_floor_freq(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	unsigned int val;
+	int ret = kstrtouint(buf, 0, &val);
+
+	if (ret < 0)
+		return ret;
+	draw_floor_freq = val;
+	return count;
+}
+
+static struct global_attr draw_floor_freq_attr = __ATTR(draw_floor_freq,
+	0644, show_draw_floor_freq, store_draw_floor_freq);
+
+static ssize_t show_draw_hold_ms(struct kobject *kobj,
+				 struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", draw_hold_ms);
+}
+
+static ssize_t store_draw_hold_ms(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	unsigned int val;
+	int ret = kstrtouint(buf, 0, &val);
+
+	if (ret < 0)
+		return ret;
+	draw_hold_ms = val;
+	return count;
+}
+
+static struct global_attr draw_hold_ms_attr = __ATTR(draw_hold_ms,
+	0644, show_draw_hold_ms, store_draw_hold_ms);
+
 static struct attribute *interactive_attributes[] = {
+	&draw_floor_freq_attr.attr,
+	&draw_hold_ms_attr.attr,
 	&target_loads_attr.attr,
 	&above_hispeed_delay_attr.attr,
 	&hispeed_freq_attr.attr,

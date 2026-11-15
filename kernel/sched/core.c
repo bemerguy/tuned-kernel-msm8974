@@ -151,6 +151,30 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
+DEFINE_PER_CPU(unsigned long, sched_ui_last_run);
+EXPORT_PER_CPU_SYMBOL(sched_ui_last_run);
+
+/*
+ * Threads that render frames (Android 11): hwui render threads, the
+ * SurfaceFlinger main thread and its RenderEngine, and the window
+ * manager animation threads. They sleep when nothing is drawing.
+ * comm is at most TASK_COMM_LEN - 1 (15) chars.
+ */
+bool sched_ui_name(const char *comm)
+{
+	switch (comm[0]) {
+	case 'R':
+		return !strcmp(comm, "RenderThread") ||
+		       !strcmp(comm, "RenderEngine");
+	case 's':
+		return !strcmp(comm, "surfaceflinger");
+	case 'a':
+		return !strcmp(comm, "android.anim") ||
+		       !strcmp(comm, "android.anim.lf");
+	}
+	return false;
+}
+
 static void update_rq_clock_task(struct rq *rq, s64 delta);
 
 void update_rq_clock(struct rq *rq)
@@ -3384,6 +3408,8 @@ need_resched:
 
 	put_prev_task(rq, prev);
 	next = pick_next_task(rq);
+	if (task_is_ui(next))
+		__this_cpu_write(sched_ui_last_run, jiffies ?: 1);
 	clear_tsk_need_resched(prev);
 	rq->skip_clock_update = 0;
 

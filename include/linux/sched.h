@@ -1467,6 +1467,8 @@ struct task_struct {
 					 * credentials (COW) */
 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
 
+	/* UI/render thread by name, see sched_ui_name(); a full byte, no bitfield */
+	bool is_ui;
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
 				       it with task_lock())
@@ -2536,6 +2538,23 @@ extern long do_fork(unsigned long, unsigned long, struct pt_regs *, unsigned lon
 struct task_struct *fork_idle(int);
 
 extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
+
+/*
+ * Threads that draw frames: named render/animation threads (is_ui, set from
+ * the thread name), plus the main thread of the foreground app, which
+ * Android runs at nice -10 (TOP_APP_PRIORITY_BOOST). Kernel threads are
+ * excluded: each is its own thread group and the highpri kworkers run at
+ * nice -20 all the time.
+ */
+extern bool sched_ui_name(const char *comm);
+static inline bool task_is_ui(const struct task_struct *p)
+{
+	return p->is_ui ||
+	       (p->pid == p->tgid && p->static_prio <= DEFAULT_PRIO - 10 &&
+		!(p->flags & PF_KTHREAD));
+}
+/* jiffies when each CPU last switched to a UI thread (0: never) */
+DECLARE_PER_CPU(unsigned long, sched_ui_last_run);
 static inline void set_task_comm(struct task_struct *tsk, const char *from)
 {
 	__set_task_comm(tsk, from, false);
