@@ -1467,6 +1467,13 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	}
 	pon->base = pon_resource->start;
 
+	/*
+	 * PON/POFF reasons are logged at error level on purpose: the console
+	 * loglevel drops KERN_INFO, and the RAM console (last_kmsg) is a
+	 * console, so this is the only way the reason for a sudden power
+	 * loss survives into the next boot's log.
+	 */
+
 	/* PON reason */
 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 				QPNP_PON_REASON1(pon->base), &pon_sts, 1);
@@ -1479,11 +1486,11 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	index = ffs(pon_sts) - 1;
 	cold_boot = !qpnp_pon_is_warm_reset();
 	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
-		dev_info(&pon->spmi->dev,
+		dev_err(&pon->spmi->dev,
 			"PMIC@SID%d Power-on reason: Unknown and '%s' boot\n",
 			pon->spmi->sid, cold_boot ? "cold" : "warm");
 	else
-		dev_info(&pon->spmi->dev,
+		dev_err(&pon->spmi->dev,
 			"PMIC@SID%d Power-on reason: %s and '%s' boot\n",
 			pon->spmi->sid, qpnp_pon_reason[index],
 			cold_boot ? "cold" : "warm");
@@ -1499,11 +1506,11 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	poff_sts = buf[0] | (buf[1] << 8);
 	index = ffs(poff_sts) - 1;
 	if (index >= ARRAY_SIZE(qpnp_poff_reason) || index < 0)
-		dev_info(&pon->spmi->dev,
+		dev_err(&pon->spmi->dev,
 				"PMIC@SID%d: Unknown power-off reason\n",
 				pon->spmi->sid);
 	else
-		dev_info(&pon->spmi->dev,
+		dev_err(&pon->spmi->dev,
 				"PMIC@SID%d: Power-off reason: %s\n",
 				pon->spmi->sid,
 				qpnp_poff_reason[index]);
