@@ -10,7 +10,6 @@
 #define SCHED_FEAT_HRTICK                    0
 #define SCHED_FEAT_DOUBLE_TICK               0
 #define SCHED_FEAT_LB_BIAS                   1
-#define SCHED_FEAT_OWNER_SPIN                1
 #define SCHED_FEAT_NONTASK_POWER             1
 #define SCHED_FEAT_TTWU_QUEUE                1
 #define SCHED_FEAT_FORCE_SD_OVERLAP          0

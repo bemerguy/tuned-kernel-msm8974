@@ -16,6 +16,7 @@
 #include <linux/lockdep.h>
 
 #include <linux/atomic.h>
+#include <linux/osq_lock.h>
 
 /*
  * Simple, straightforward mutexes with strict semantics:
@@ -52,6 +53,9 @@ struct mutex {
 	struct list_head	wait_list;
 #if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_SMP)
 	struct task_struct	*owner;
+#endif
+#ifdef CONFIG_MUTEX_SPIN_ON_OWNER
+	struct optimistic_spin_queue osq; /* Spinner MCS lock */
 #endif
 #ifdef CONFIG_DEBUG_MUTEXES
 	const char 		*name;
