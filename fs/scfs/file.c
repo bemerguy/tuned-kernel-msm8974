@@ -127,7 +127,7 @@ out:
 	}
 	mutex_unlock(&sii->cinfo_mutex);
 	SCFS_PRINT("lower, dentry name : %s, count : %d, ret : %d\n",
-		file->f_dentry->d_name.name, file->f_dentry->d_count, ret);
+		file->f_dentry->d_name.name, file->f_dentry->d_lockref.count, ret);
 	
 	return ret;
 }

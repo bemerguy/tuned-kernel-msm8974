@@ -7,6 +7,7 @@
 #include <linux/rculist_bl.h>
 #include <linux/spinlock.h>
 #include <linux/seqlock.h>
+#include <linux/lockref.h>
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
 
@@ -100,6 +101,8 @@ extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 # endif
 #endif
 
+#define d_lock	d_lockref.lock
+
 struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
@@ -112,8 +115,7 @@ struct dentry {
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
 
 	/* Ref lookup also touches following */
-	unsigned int d_count;		/* protected by d_lock */
-	spinlock_t d_lock;		/* per dentry lock */
+	struct lockref d_lockref;	/* per-dentry lock and refcount */
 	const struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	unsigned long d_time;		/* used by d_revalidate */
@@ -320,10 +322,21 @@ static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
 	assert_spin_locked(&dentry->d_lock);
 	if (!read_seqcount_retry(&dentry->d_seq, seq)) {
 		ret = 1;
-		dentry->d_count++;
+		dentry->d_lockref.count++;
 	}
 
 	return ret;
+}
+
+/**
+ * d_count - return the reference count of a dentry
+ * @dentry: the dentry
+ *
+ * Racy without d_lock held; only use the result as a hint.
+ */
+static inline unsigned d_count(const struct dentry *dentry)
+{
+	return dentry->d_lockref.count;
 }
 
 /* validate "insecure" dentry pointer */
@@ -354,7 +367,7 @@ extern char *dentry_path(struct dentry *, char *, int);
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {
 	if (dentry)
-		dentry->d_count++;
+		dentry->d_lockref.count++;
 	return dentry;
 }
 
