@@ -152,13 +152,6 @@ fi
 # We need access to CONFIG_ symbols
 . ./.config
 
-#link vmlinux.o
-info LD vmlinux.o
-modpost_link vmlinux.o
-
-# modpost vmlinux.o to check for section mismatches
-${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
-
 # Update version
 info GEN .version
 if [ ! -r .version ]; then
@@ -169,8 +162,16 @@ else
 	expr 0$(cat .old_version) + 1 >.version;
 fi;
 
-# final build of init/
+# final build of init/ (before vmlinux.o: with LTO it already
+# contains init/version.o, the final link does not see init/ again)
 ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init
+
+#link vmlinux.o
+info LD vmlinux.o
+modpost_link vmlinux.o
+
+# modpost vmlinux.o to check for section mismatches
+${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
 
 kallsymso=""
 kallsyms_vmlinux=""
