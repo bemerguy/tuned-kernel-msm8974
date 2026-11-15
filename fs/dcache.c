@@ -260,7 +260,7 @@ static void dentry_free(struct dentry *dentry)
 static void d_free(struct dentry *dentry)
 {
 	WARN_ON(!list_empty(&dentry->d_u.d_alias));
-	BUG_ON(dentry->d_lockref.count);
+	BUG_ON((int)dentry->d_lockref.count > 0);
 	this_cpu_dec(nr_dentry);
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
@@ -532,7 +532,7 @@ EXPORT_SYMBOL(d_clear_need_lookup);
  * If ref is non-zero, then decrement the refcount too.
  * Returns dentry requiring refcount drop, or NULL if we're done.
  */
-static inline struct dentry *dentry_kill(struct dentry *dentry, int ref)
+static inline struct dentry *dentry_kill(struct dentry *dentry)
 	__releases(dentry->d_lock)
 {
 	struct inode *inode;
@@ -555,8 +555,11 @@ relock:
 		goto relock;
 	}
 
-	if (ref)
-		dentry->d_lockref.count--;
+	/*
+	 * The dentry is now unrecoverably dead to the world.
+	 */
+	lockref_mark_dead(&dentry->d_lockref);
+
 	/*
 	 * if dentry was on the d_lru list delete it from there.
 	 * inform the fs via d_prune that this dentry is about to be
@@ -596,19 +599,12 @@ relock:
  */
 void dput(struct dentry *dentry)
 {
-	if (!dentry)
+	if (unlikely(!dentry))
 		return;
 
 repeat:
-	if (dentry->d_lockref.count == 1)
-		might_sleep();
-	spin_lock(&dentry->d_lock);
-	BUG_ON(!dentry->d_lockref.count);
-	if (dentry->d_lockref.count > 1) {
-		dentry->d_lockref.count--;
-		spin_unlock(&dentry->d_lock);
+	if (lockref_put_or_lock(&dentry->d_lockref))
 		return;
-	}
 
 	if (dentry->d_flags & DCACHE_OP_DELETE) {
 		if (dentry->d_op->d_delete(dentry))
@@ -633,7 +629,7 @@ repeat:
 	return;
 
 kill_it:
-	dentry = dentry_kill(dentry, 1);
+	dentry = dentry_kill(dentry);
 	if (dentry)
 		goto repeat;
 }
@@ -711,7 +707,22 @@ static inline void __dget(struct dentry *dentry)
 
 struct dentry *dget_parent(struct dentry *dentry)
 {
+	int gotref;
 	struct dentry *ret;
+
+	/*
+	 * Do optimistic parent lookup without any
+	 * locking.
+	 */
+	rcu_read_lock();
+	ret = ACCESS_ONCE(dentry->d_parent);
+	gotref = lockref_get_not_zero(&ret->d_lockref);
+	rcu_read_unlock();
+	if (likely(gotref)) {
+		if (likely(ret == ACCESS_ONCE(dentry->d_parent)))
+			return ret;
+		dput(ret);
+	}
 
 repeat:
 	/*
@@ -834,7 +845,7 @@ static void try_prune_one_dentry(struct dentry *dentry)
 {
 	struct dentry *parent;
 
-	parent = dentry_kill(dentry, 0);
+	parent = dentry_kill(dentry);
 	/*
 	 * If dentry_kill returns NULL, we have nothing more to do.
 	 * if it returns the same dentry, trylocks failed. In either
@@ -853,13 +864,9 @@ static void try_prune_one_dentry(struct dentry *dentry)
 	/* Prune ancestors. */
 	dentry = parent;
 	while (dentry) {
-		spin_lock(&dentry->d_lock);
-		if (dentry->d_lockref.count > 1) {
-			dentry->d_lockref.count--;
-			spin_unlock(&dentry->d_lock);
+		if (lockref_put_or_lock(&dentry->d_lockref))
 			return;
-		}
-		dentry = dentry_kill(dentry, 1);
+		dentry = dentry_kill(dentry);
 	}
 }
 
@@ -1881,7 +1888,7 @@ static noinline enum slow_d_compare slow_dentry_cmp(
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
  *
- * A refcount may be taken on the found dentry with the __d_rcu_to_refcount
+ * A refcount may be taken on the found dentry with lockref_get_not_dead()
  * function.
  *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of
