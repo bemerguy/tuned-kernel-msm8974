@@ -101,8 +101,9 @@ static unsigned int default_target_loads[] = {
     85, 800000,    // até 800 MHz, espera 85%
     80, 1500000,   // até 1.5 GHz, espera 80%
     75, 2000000,   // até 2.0 GHz, espera 75%
-    70, 2400000,   // até 2.4 GHz, espera 70%
-    65             // acima de 2.4 GHz, tolera menos carga -> sobe pra 2.7 só se necessário
+    70, 2457000,   // até 2.45 GHz (máximo stock), espera 70%: sobe rápido
+    99             // overclock (2534-3014 MHz): só com o núcleo saturado a 2457,
+                   // pois a energia por ciclo sobe ~21% de 2457 a 2841 MHz
 };
 static spinlock_t target_loads_lock;
 static unsigned int *target_loads = default_target_loads;
@@ -134,7 +135,7 @@ static unsigned int default_above_hispeed_delay[] = {
     20000, 1700000,
     15000, 2000000,
     10000, 2400000,
-    5000
+    20000          // no overclock, espera 20 ms antes de cada degrau
 };
 static spinlock_t above_hispeed_delay_lock;
 static unsigned int *above_hispeed_delay = default_above_hispeed_delay;
