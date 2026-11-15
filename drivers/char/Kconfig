@@ -66,6 +66,15 @@ source "drivers/tty/serial/Kconfig"
 
 source "drivers/char/diag/Kconfig"
 
+config PMSG_SINK
+	bool "/dev/pmsg0 sink for Android liblog"
+	default y if ANDROID
+	help
+	  Provide /dev/pmsg0 so Android's liblog can keep it open instead
+	  of retrying (and failing) an open() for every log message. The
+	  data written is discarded. Say Y on Android kernels without
+	  pstore pmsg support.
+
 config TTY_PRINTK
 	bool "TTY driver to output user messages via printk"
 	depends on EXPERT

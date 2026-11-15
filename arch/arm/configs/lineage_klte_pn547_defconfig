@@ -2076,6 +2076,7 @@ CONFIG_DIAG_OVER_USB=y
 #
 # HSIC/SMUX support for DIAG
 #
+CONFIG_PMSG_SINK=y
 # CONFIG_TTY_PRINTK is not set
 # CONFIG_HVC_DCC is not set
 # CONFIG_IPMI_HANDLER is not set
