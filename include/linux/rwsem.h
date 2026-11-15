@@ -13,19 +13,30 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-
 #include <linux/atomic.h>
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+#include <linux/osq_lock.h>
+#endif
 
 struct rw_semaphore;
 
 #ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
 #include <linux/rwsem-spinlock.h> /* use a generic implementation */
+#define __RWSEM_INIT_COUNT(name)	.activity = 0
 #else
 /* All arch specific implementations share the same struct */
 struct rw_semaphore {
-	long			count;
-	raw_spinlock_t		wait_lock;
-	struct list_head	wait_list;
+	atomic_long_t count;
+	struct list_head wait_list;
+	raw_spinlock_t wait_lock;
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+	struct optimistic_spin_queue osq; /* spinner MCS lock */
+	/*
+	 * Write owner. Used as a speculative check to see
+	 * if the owner is running on the cpu.
+	 */
+	struct task_struct *owner;
+#endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
@@ -42,9 +53,10 @@ extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
 /* In all implementations count != 0 means locked */
 static inline int rwsem_is_locked(struct rw_semaphore *sem)
 {
-	return sem->count != 0;
+	return atomic_long_read(&sem->count) != 0;
 }
 
+#define __RWSEM_INIT_COUNT(name)	.count = ATOMIC_LONG_INIT(RWSEM_UNLOCKED_VALUE)
 #endif
 
 /* Common initializer macros and functions */
@@ -55,10 +67,17 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 # define __RWSEM_DEP_MAP_INIT(lockname)
 #endif
 
-#define __RWSEM_INITIALIZER(name)			\
-	{ RWSEM_UNLOCKED_VALUE,				\
-	  __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock),	\
-	  LIST_HEAD_INIT((name).wait_list)		\
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+#define __RWSEM_OPT_INIT(lockname) , .osq = OSQ_LOCK_UNLOCKED, .owner = NULL
+#else
+#define __RWSEM_OPT_INIT(lockname)
+#endif
+
+#define __RWSEM_INITIALIZER(name)				\
+	{ __RWSEM_INIT_COUNT(name),				\
+	  .wait_list = LIST_HEAD_INIT((name).wait_list),	\
+	  .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock)	\
+	  __RWSEM_OPT_INIT(name)				\
 	  __RWSEM_DEP_MAP_INIT(name) }
 
 #define DECLARE_RWSEM(name) \

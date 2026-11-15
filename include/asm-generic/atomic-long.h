@@ -253,6 +253,24 @@ static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
 #define atomic_long_xchg(v, new) \
 	(atomic_xchg((atomic_t *)(v), (new)))
 
+#define atomic_long_cmpxchg_acquire(l, old, new) \
+	((long)atomic_cmpxchg_acquire((atomic_t *)(l), (old), (new)))
+#define atomic_long_add_return_acquire(i, l) \
+	((long)atomic_add_return_acquire((i), (atomic_t *)(l)))
+#define atomic_long_add_return_release(i, l) \
+	((long)atomic_add_return_release((i), (atomic_t *)(l)))
+#define atomic_long_sub_return_release(i, l) \
+	((long)atomic_sub_return_release((i), (atomic_t *)(l)))
+#define atomic_long_inc_return_acquire(l) \
+	atomic_long_add_return_acquire(1, (l))
+#define atomic_long_dec_return_release(l) \
+	atomic_long_sub_return_release(1, (l))
+
+static inline long atomic_long_fetch_add(long i, atomic_long_t *l)
+{
+	return atomic_long_add_return(i, l) - i;
+}
+
 #endif  /*  BITS_PER_LONG == 64  */
 
 #endif  /*  _ASM_GENERIC_ATOMIC_LONG_H  */
