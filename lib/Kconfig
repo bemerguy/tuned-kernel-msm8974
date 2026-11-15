@@ -64,6 +64,17 @@ config CRC_ITU_T
 	  the kernel tree does. Such modules that use library CRC ITU-T V.41
 	  functions require M here.
 
+config ARCH_USE_CMPXCHG_LOCKREF
+	bool
+
+config CMPXCHG_LOCKREF
+	def_bool y
+	depends on ARCH_USE_CMPXCHG_LOCKREF
+	depends on SMP
+	depends on !GENERIC_LOCKBREAK
+	depends on !DEBUG_SPINLOCK
+	depends on !DEBUG_LOCK_ALLOC
+
 config CRC32
 	tristate "CRC32/CRC32c functions"
 	default y

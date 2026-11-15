@@ -92,6 +92,7 @@ static inline void dsb_sev(void)
  * Locked value: 1
  */
 
+#define arch_spin_value_unlocked(x)	((x).lock == 0)
 #define arch_spin_is_locked(x)		((x)->lock != 0)
 #define arch_spin_unlock_wait(lock) \
 	do { while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
@@ -269,6 +270,12 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 	  [fixup]"+r" (fixup)
 	: [lockaddr]"r" (&lock->lock)
 	: "cc");
+}
+
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	unsigned long tmp = lock.lock;
+	return (((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK) == 0;
 }
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
