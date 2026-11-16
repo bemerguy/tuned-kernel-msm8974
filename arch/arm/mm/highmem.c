@@ -48,15 +48,18 @@ void *kmap_atomic(struct page *page)
 	if (!PageHighMem(page))
 		return page_address(page);
 
-#ifdef CONFIG_DEBUG_HIGHMEM
 	/*
-	 * There is no cache coherency issue when non VIVT, so force the
-	 * dedicated kmap usage for better debugging purposes in that case.
+	 * There is no cache coherency issue when non VIVT, so always use the
+	 * dedicated atomic kmap slot in that case.  kmap_high_get() only
+	 * reuses an existing pkmap mapping, but it takes kmap_lock with IRQs
+	 * off plus the page_address() hash lock on every call: on Krait it
+	 * was the hottest kernel function in pipe/fault/zram paths for
+	 * HighMem pages.  cache_is_vivt() is constant false on VIPT-only
+	 * builds, so the call is compiled out.
 	 */
 	if (!cache_is_vivt())
 		kmap = NULL;
 	else
-#endif
 		kmap = kmap_high_get(page);
 	if (kmap)
 		return kmap;
