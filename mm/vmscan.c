@@ -355,7 +355,14 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
 			max_pass = shrinker->count_objects(shrinker, shrinkctl);
 		else
 			max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
-		if (max_pass == 0)
+		/*
+		 * Old-style ->shrink() callbacks (prune_super, ashmem,
+		 * binder_alloc, ion, zsmalloc, mbcache...) return -1 when they
+		 * cannot work right now.  Treating that as a count made delta
+		 * (unsigned) wrap and total_scan overflow ("negative objects
+		 * to delete"), so skip it as 3.4 did.
+		 */
+		if (max_pass <= 0)
 			continue;
 
 		/*
