@@ -361,7 +361,8 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	}
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
-	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
+	policy->max = min_t(unsigned int, CONFIG_MSM_CPU_FREQ_MAX,
+			    policy->cpuinfo.max_freq);
 #endif
 #ifdef CONFIG_SEC_DVFS
 	cpuinfo_max_freq = policy->cpuinfo.max_freq;
@@ -516,6 +517,20 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.attr		= msm_freq_attr,
 };
 
+/*
+ * "cpu_oc=0" on the kernel command line (set by the installer when the
+ * user opts out) drops every table step above the stock 2457.6 MHz.
+ */
+#define MSM_STOCK_MAX_KHZ 2457600
+static bool cpu_oc = true;
+
+static int __init cpu_oc_setup(char *s)
+{
+	cpu_oc = !(s[0] == '0' && s[1] == '\0');
+	return 1;
+}
+__setup("cpu_oc=", cpu_oc_setup);
+
 #define PROP_TBL "qcom,cpufreq-table"
 static int cpufreq_parse_dt(struct device *dev)
 {
@@ -559,6 +574,9 @@ static int cpufreq_parse_dt(struct device *dev)
 	j = 0;
 	for (i = 0; i < nf; i++) {
 		unsigned long f;
+
+		if (!cpu_oc && data[j] > MSM_STOCK_MAX_KHZ)
+			break;
 
 		f = clk_round_rate(cpu_clk[0], data[j++] * 1000);
 		if (IS_ERR_VALUE(f))
@@ -613,7 +631,9 @@ static int cpufreq_parse_dt(struct device *dev)
 		return -ENOMEM;
 
 	for (i = 0, j = 0; i < nf; i++, j += 3)
-		dts_freq_table[i].frequency = data[j];
+		dts_freq_table[i].frequency =
+			(!cpu_oc && data[j] > MSM_STOCK_MAX_KHZ) ?
+			CPUFREQ_ENTRY_INVALID : data[j];
 	dts_freq_table[i].frequency = CPUFREQ_TABLE_END;
 #endif
 

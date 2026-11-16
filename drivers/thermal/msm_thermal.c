@@ -819,7 +819,9 @@ static int msm_thermal_get_freq_table(void)
 		goto fail;
 	}
 
-	while (table[i].frequency != CONFIG_MSM_CPU_FREQ_MAX)
+	/* the table stops below CONFIG_MSM_CPU_FREQ_MAX when cpu_oc=0 */
+	while (table[i].frequency != CONFIG_MSM_CPU_FREQ_MAX &&
+	       table[i + 1].frequency != CPUFREQ_TABLE_END)
 		i++;
 //#ifdef CONFIG_SEC_PM
 //	limit_idx_low = 7;

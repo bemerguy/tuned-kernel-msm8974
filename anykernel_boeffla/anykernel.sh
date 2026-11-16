@@ -64,6 +64,39 @@ BLOCK=$AKHOME/boot-src.img;
 
 dump_boot; # use split_boot to skip ramdisk unpack, e.g. for devices with init_boot ramdisk
 
+# CPU overclock opt-out.  Some S5s can't run above the stock 2457.6 MHz, so
+# give the user 5 seconds to press Volume UP; that adds cpu_oc=0 to the
+# kernel command line, which drops the overclocked steps.  Read the raw
+# input events (struct input_event on 32-bit ARM is 16 bytes; EV_KEY=1,
+# KEY_VOLUMEUP=115, value 1 = press) so this doesn't depend on getevent.
+volup_pressed() {
+  local ev pid found=1;
+  rm -rf $AKHOME/ev; mkdir -p $AKHOME/ev;
+  for ev in /dev/input/event*; do
+    cat $ev > $AKHOME/ev/${ev##*/} 2>/dev/null &
+  done;
+  for i in $(seq 1 50); do
+    usleep 100000;
+    if cat $AKHOME/ev/* 2>/dev/null | od -An -v -tx1 -w16 | grep -q " 01 00 73 00 01 00 00 00$"; then
+      found=0;
+      break;
+    fi;
+  done;
+  for pid in $(jobs -p); do kill $pid 2>/dev/null; done;
+  wait 2>/dev/null;
+  rm -rf $AKHOME/ev;
+  return $found;
+}
+
+ui_print " " "*** Press Volume UP within 5 seconds to DISABLE CPU overclocking ***" "    (max 2457.6 MHz instead of 2764.8 MHz)" " ";
+if volup_pressed; then
+  ui_print "- CPU overclocking DISABLED (cpu_oc=0)";
+  patch_cmdline "cpu_oc=" "cpu_oc=0";
+else
+  ui_print "- CPU overclocking enabled";
+  patch_cmdline "cpu_oc=" "";
+fi;
+
 BLOCK=$REALBLOCK;
 write_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
 ## end boot install
