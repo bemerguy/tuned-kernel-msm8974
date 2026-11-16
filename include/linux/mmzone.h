@@ -162,6 +162,7 @@ enum zone_stat_item {
 	NR_CMA_UNEVICTABLE,
 #endif
 	NR_SWAPCACHE,
+	NR_ALLOC_BATCH,		/* fair zone allocation: pages left in batch */
 	NR_VM_ZONE_STAT_ITEMS };
 
 /*
@@ -508,6 +509,7 @@ typedef enum {
 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
 					 * a congested BDI
 					 */
+	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
 } zone_flags_t;
 
 static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)

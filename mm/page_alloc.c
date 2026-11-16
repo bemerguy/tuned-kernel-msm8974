@@ -1593,6 +1593,7 @@ again:
 		else
 			page = list_entry(list->next, struct page, lru);
 
+		__dec_zone_state(zone, NR_ALLOC_BATCH);
 		list_del(&page->lru);
 		pcp->count--;
 	} else {
@@ -1617,9 +1618,14 @@ again:
 		spin_unlock(&zone->lock);
 		if (!page)
 			goto failed;
+		__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
 		__mod_zone_freepage_state(zone, -(1 << order),
 					  get_pageblock_migratetype(page));
 	}
+
+	if (atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]) <= 0 &&
+	    !test_bit(ZONE_FAIR_DEPLETED, &zone->flags))
+		set_bit(ZONE_FAIR_DEPLETED, &zone->flags);
 
 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
 	zone_statistics(preferred_zone, zone, gfp_flags);
@@ -1909,6 +1915,18 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
 }
 #endif	/* CONFIG_NUMA */
 
+static void reset_alloc_batches(struct zone *preferred_zone)
+{
+	struct zone *zone = preferred_zone->zone_pgdat->node_zones;
+
+	do {
+		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+			high_wmark_pages(zone) - low_wmark_pages(zone) -
+			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+		clear_bit(ZONE_FAIR_DEPLETED, &zone->flags);
+	} while (zone++ != preferred_zone);
+}
+
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
@@ -1925,6 +1943,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+	bool fair_skipped = false;
+	bool apply_fair = (alloc_flags & ALLOC_FAIR);
 
 	classzone_idx = zone_idx(preferred_zone);
 zonelist_scan:
@@ -1940,6 +1960,16 @@ zonelist_scan:
 		if ((alloc_flags & ALLOC_CPUSET) &&
 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
 				continue;
+		/*
+		 * Distribute pages in proportion to the individual
+		 * zone size to ensure fair page aging.  The zone a
+		 * page was allocated in should have no effect on the
+		 * time the page has in memory before being reclaimed.
+		 */
+		if (apply_fair && test_bit(ZONE_FAIR_DEPLETED, &zone->flags)) {
+			fair_skipped = true;
+			continue;
+		}
 		/*
 		 * When allocating a page cache page for writing, we
 		 * want to get it from a zone that is within its dirty
@@ -2031,6 +2061,19 @@ this_zone_full:
 	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
 		/* Disable zlc cache for second zonelist scan */
 		zlc_active = 0;
+		goto zonelist_scan;
+	}
+
+	/*
+	 * The first pass spreads allocations fairly over the zones, but
+	 * there may be free pages left after the fairness batches are
+	 * exhausted.  Try once more without fairness, after refilling the
+	 * batches, before entering the slowpath and waking kswapd.
+	 */
+	if (unlikely(page == NULL && fair_skipped)) {
+		apply_fair = false;
+		fair_skipped = false;
+		reset_alloc_batches(preferred_zone);
 		goto zonelist_scan;
 	}
 	return page;
@@ -2727,7 +2770,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	unsigned int cpuset_mems_cookie;
-	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET;
+	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
 
 	gfp_mask &= gfp_allowed_mask;
 
@@ -4752,6 +4795,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 
 		zone_pcp_init(zone);
+
+		/* For bootup, initialized properly in watermark setup */
+		mod_zone_page_state(zone, NR_ALLOC_BATCH, zone->present_pages);
 		for_each_lru(lru)
 			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
 		zone->lruvec.reclaim_stat.recent_rotated[0] = 0;
@@ -5434,6 +5480,11 @@ static void __setup_per_zone_wmarks(void)
 					low + (min >> 2);
 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
 					low + (min >> 1);
+
+		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
+			high_wmark_pages(zone) - low_wmark_pages(zone) -
+			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+
 		setup_zone_migrate_reserve(zone);
 		spin_unlock_irqrestore(&zone->lock, flags);
 	}
