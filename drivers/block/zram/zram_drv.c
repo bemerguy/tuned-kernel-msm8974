@@ -819,7 +819,10 @@ static ssize_t disksize_store(struct device *dev,
 	if (!disksize)
 		return -EINVAL;
 
-	disksize = PAGE_ALIGN(disksize*5);
+	/* x3: ~1.27 GB on the 424 MB the ROM asks for; at x5 (2.1 GB) lz4 data
+	 * overran RAM around 1.5 GB, zsmalloc failed and swap writes errored
+	 * into an OOM livelock */
+	disksize = PAGE_ALIGN(disksize*3);
 	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
 	if (!meta)
 		return -ENOMEM;
