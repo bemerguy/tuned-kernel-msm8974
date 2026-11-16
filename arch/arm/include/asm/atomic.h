@@ -52,12 +52,17 @@ static inline void atomic_add(int i, atomic_t *v)
 	: "cc");
 }
 
-static inline int atomic_add_return(int i, atomic_t *v)
+/*
+ * _relaxed variants (v4.3 "ARM: atomics: define our SMP atomics in terms of
+ * _relaxed operations"): no barriers; linux/atomic.h builds the _acquire and
+ * _release forms with a single smp_mb() on one side.  A dmb costs ~150
+ * cycles on Krait, so lock fast paths save one barrier per operation.
+ */
+static inline int atomic_add_return_relaxed(int i, atomic_t *v)
 {
 	unsigned long tmp;
 	int result;
 
-	smp_mb();
 	prefetchw(&v->counter);
 
 	__asm__ __volatile__("@ atomic_add_return\n"
@@ -70,10 +75,21 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	: "r" (&v->counter), "Ir" (i)
 	: "cc");
 
+	return result;
+}
+#define atomic_add_return_relaxed	atomic_add_return_relaxed
+
+static inline int atomic_add_return(int i, atomic_t *v)
+{
+	int result;
+
+	smp_mb();
+	result = atomic_add_return_relaxed(i, v);
 	smp_mb();
 
 	return result;
 }
+#define atomic_add_return	atomic_add_return
 
 static inline void atomic_sub(int i, atomic_t *v)
 {
@@ -91,12 +107,11 @@ static inline void atomic_sub(int i, atomic_t *v)
 	: "cc");
 }
 
-static inline int atomic_sub_return(int i, atomic_t *v)
+static inline int atomic_sub_return_relaxed(int i, atomic_t *v)
 {
 	unsigned long tmp;
 	int result;
 
-	smp_mb();
 	prefetchw(&v->counter);
 
 	__asm__ __volatile__("@ atomic_sub_return\n"
@@ -109,16 +124,26 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	: "r" (&v->counter), "Ir" (i)
 	: "cc");
 
+	return result;
+}
+#define atomic_sub_return_relaxed	atomic_sub_return_relaxed
+
+static inline int atomic_sub_return(int i, atomic_t *v)
+{
+	int result;
+
+	smp_mb();
+	result = atomic_sub_return_relaxed(i, v);
 	smp_mb();
 
 	return result;
 }
+#define atomic_sub_return	atomic_sub_return
 
-static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
+static inline int atomic_cmpxchg_relaxed(atomic_t *ptr, int old, int new)
 {
 	unsigned long oldval, res;
 
-	smp_mb();
 	prefetchw(&ptr->counter);
 
 	do {
@@ -132,10 +157,24 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 		    : "cc");
 	} while (res);
 
-	smp_mb();
-
 	return oldval;
 }
+#define atomic_cmpxchg_relaxed		atomic_cmpxchg_relaxed
+
+static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
+{
+	int ret;
+
+	smp_mb();
+	ret = atomic_cmpxchg_relaxed(ptr, old, new);
+	smp_mb();
+
+	return ret;
+}
+#define atomic_cmpxchg			atomic_cmpxchg
+
+#define smp_mb__before_atomic()		smp_mb()
+#define smp_mb__after_atomic()		smp_mb()
 
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 {
