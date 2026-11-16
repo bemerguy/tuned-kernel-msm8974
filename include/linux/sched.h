@@ -1361,6 +1361,10 @@ extern void wake_q_add(struct wake_q_head *head, struct task_struct *task);
 extern void wake_q_add_safe(struct wake_q_head *head, struct task_struct *task);
 extern void wake_up_q(struct wake_q_head *head);
 
+#define VMACACHE_BITS 2
+#define VMACACHE_SIZE (1U << VMACACHE_BITS)
+#define VMACACHE_MASK (VMACACHE_SIZE - 1)
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -1430,6 +1434,9 @@ struct task_struct {
 #endif
 
 	struct mm_struct *mm, *active_mm;
+	/* per-thread vma caching (see include/linux/vmacache.h) */
+	u64 vmacache_seqnum;
+	struct vm_area_struct *vmacache[VMACACHE_SIZE];
 #ifdef CONFIG_COMPAT_BRK
 	unsigned brk_randomized:1;
 #endif

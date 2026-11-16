@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/backing-dev.h>
 #include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/shm.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
@@ -521,8 +522,9 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (next)
 		next->vm_prev = prev;
 	rb_erase(&vma->vm_rb, &mm->mm_rb);
-	if (mm->mmap_cache == vma)
-		mm->mmap_cache = prev;
+
+	/* Kill the cache */
+	vmacache_invalidate(mm);
 }
 
 /*
@@ -1756,14 +1758,12 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 	struct vm_area_struct *vma = NULL;
 
 	if (mm) {
-		/* Check the cache first. */
-		/* (Cache hit rate is typically around 35%.) */
-		vma = ACCESS_ONCE(mm->mmap_cache);
-		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+		/* Check the per-thread cache first. */
+		vma = vmacache_find(mm, addr);
+		if (!vma) {
 			struct rb_node * rb_node;
 
 			rb_node = mm->mm_rb.rb_node;
-			vma = NULL;
 
 			while (rb_node) {
 				struct vm_area_struct * vma_tmp;
@@ -1780,7 +1780,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 					rb_node = rb_node->rb_right;
 			}
 			if (vma)
-				mm->mmap_cache = vma;
+				vmacache_update(addr, vma);
 		}
 	}
 	return vma;
@@ -2166,7 +2166,9 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
 	else
 		addr = vma ?  vma->vm_start : mm->mmap_base;
 	mm->unmap_area(mm, addr);
-	mm->mmap_cache = NULL;		/* Kill the cache. */
+
+	/* Kill the cache */
+	vmacache_invalidate(mm);
 }
 
 /*
