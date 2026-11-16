@@ -59,8 +59,11 @@ extern int msm_krait_need_wfe_fixup;
 "	mcr	p15, 7, " fixup ", c15, c0, 5\n"	\
 "	isb\n"						\
 "10:	msr	cpsr_cf, " tmp "\n"
+#define WFE_FIXUP_NEEDED	msm_krait_need_wfe_fixup
 #else
 #define WFE_SAFE(fixup, tmp)	"	wfe\n"
+/* the fixup operand is unused: don't load msm_krait_need_wfe_fixup */
+#define WFE_FIXUP_NEEDED	0
 #endif
 
 static inline void dsb_sev(void)
@@ -101,7 +104,7 @@ static inline void dsb_sev(void)
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
-	unsigned long tmp, fixup = msm_krait_need_wfe_fixup;
+	unsigned long tmp, fixup = WFE_FIXUP_NEEDED;
 
 	__asm__ __volatile__(
 "1:	ldrex	%[tmp], [%[lock]]\n"
@@ -179,7 +182,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp, ticket, next_ticket;
-	unsigned long fixup = msm_krait_need_wfe_fixup;
+	unsigned long fixup = WFE_FIXUP_NEEDED;
 
 	/* Grab the next ticket and wait for it to be "served" */
 	__asm__ __volatile__(
@@ -248,7 +251,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 
 static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
-	unsigned long ticket, tmp, fixup = msm_krait_need_wfe_fixup;
+	unsigned long ticket, tmp, fixup = WFE_FIXUP_NEEDED;
 
 	/* Wait for now_serving == next_ticket */
 	__asm__ __volatile__(
@@ -274,7 +277,12 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 
 static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 {
-	unsigned long tmp = lock.lock;
+	/*
+	 * lock is a by-value copy (lockref snapshot): read it through a
+	 * non-volatile pointer so it stays in a register instead of going
+	 * through the stack.
+	 */
+	unsigned long tmp = *(unsigned int *)&lock;
 	return (((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK) == 0;
 }
 
@@ -301,7 +309,7 @@ static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	unsigned long tmp, fixup = msm_krait_need_wfe_fixup;
+	unsigned long tmp, fixup = WFE_FIXUP_NEEDED;
 
 	__asm__ __volatile__(
 "1:	ldrex	%[tmp], [%[lock]]\n"
@@ -369,7 +377,7 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
  */
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	unsigned long tmp, tmp2, fixup = msm_krait_need_wfe_fixup;
+	unsigned long tmp, tmp2, fixup = WFE_FIXUP_NEEDED;
 
 	__asm__ __volatile__(
 "1:	ldrex	%[tmp], [%[lock]]\n"
