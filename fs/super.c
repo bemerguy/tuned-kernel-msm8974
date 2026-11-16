@@ -61,6 +61,27 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
 		return -1;
 
+	/*
+	 * Count-only call (v3.12 d23da150a37c "fs/superblock: avoid locking
+	 * counting inodes and dentries before reclaiming them"): don't call
+	 * grab_super_passive(), it takes the global sb_lock and s_umount for
+	 * every superblock on every shrink_slab() pass.  shrink_slab() holds
+	 * shrinker_rwsem, and unregister_shrinker() in
+	 * deactivate_locked_super() needs it for write, so sb stays valid.
+	 * The counts are racy either way.
+	 */
+	if (!sc->nr_to_scan) {
+		/* not fully set up yet (v3.16 28f2cd4f6da2) */
+		if (!(sb->s_flags & MS_BORN))
+			return 0;
+		smp_rmb();
+		if (sb->s_op && sb->s_op->nr_cached_objects)
+			fs_objects = sb->s_op->nr_cached_objects(sb);
+		total_objects = sb->s_nr_dentry_unused +
+				sb->s_nr_inodes_unused + fs_objects;
+		return vfs_pressure_ratio(total_objects);
+	}
+
 	if (!grab_super_passive(sb))
 		return -1;
 
@@ -238,10 +259,14 @@ void deactivate_locked_super(struct super_block *s)
 	struct file_system_type *fs = s->s_type;
 	if (atomic_dec_and_test(&s->s_active)) {
 		cleancache_invalidate_fs(s);
-		fs->kill_sb(s);
-
-		/* caches are now gone, we can safely kill the shrinker now */
+		/*
+		 * Unregister the shrinker before ->kill_sb() (v3.16
+		 * 28f2cd4f6da2): prune_super() counts objects without
+		 * pinning the superblock, so it must not run while the
+		 * filesystem is being torn down.
+		 */
 		unregister_shrinker(&s->s_shrink);
+		fs->kill_sb(s);
 		put_filesystem(fs);
 		put_super(s);
 	} else {
