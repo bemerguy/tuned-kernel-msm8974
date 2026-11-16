@@ -134,6 +134,8 @@ endif
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO),$(KBUILD_CFLAGS))
 
 ccflags-y := -fpic -fno-builtin -I$(obj)
+# The decompressor runs with the caches (and MMU) off: no unaligned accesses.
+ccflags-y += $(call cc-option,-mno-unaligned-access)
 
 # Supply kernel BSS size to the decompressor via a linker symbol.
 KBSS_SZ = $(shell $(if $(filter 1,$(LLVM)),llvm-size,$(CROSS_COMPILE)size) $(objtree)/vmlinux | \

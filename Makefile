@@ -678,7 +678,6 @@ BOPTS += -O2 --param inline-min-speedup=20 --param max-inline-insns-auto=30 \
 	-falign-loops=4 -falign-jumps=4
 else
 CLANG_FLAGS += --target=armv7a-linux-gnueabihf
-CLANG_FLAGS     += -mno-unaligned-access
 CLANG_FLAGS     += -mno-global-merge
 CLANG_FLAGS     += -fno-builtin
 CLANG_FLAGS     += -Wno-asm-operand-widths
