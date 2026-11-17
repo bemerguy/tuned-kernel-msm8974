@@ -265,8 +265,10 @@ step5_create_anykernel_zip()
 
 step6_flash()
 {
-	# only when run from a terminal
+	# only when run directly from an interactive shell (not from buildall
+	# or other wrapper scripts)
 	[ "${FLASH:-1}" = "1" ] && [ -t 0 ] || return 0
+	[[ "$(ps -o comm= -p $PPID 2>/dev/null)" =~ ^(bash|zsh|sh|dash|fish)$ ]] || return 0
 	command -v adb >/dev/null || return 0
 
 	local state reboot=0
