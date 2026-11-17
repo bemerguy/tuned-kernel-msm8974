@@ -465,15 +465,23 @@ static void scorpion_write_l2lpm(u32 val)
 
 static u32 scorpion_read_vlpm(void)
 {
-	u32 val;
+	/*
+	 * mrc p10, 7, r0, c11, c0, 0 as a raw ARM opcode: an implementation
+	 * defined cp10 register has no vmrs name, and the assembler warns
+	 * that cp10/cp11 are reserved for VFP/NEON since v7.
+	 */
+	register u32 val asm("r0");
 
-	asm volatile("mrc p10, 7, %0, c11, c0, 0" : "=r" (val));
+	asm volatile(".inst 0xeefb0a10" : "=r" (val));
 	return val;
 }
 
 static void scorpion_write_vlpm(u32 val)
 {
-	asm volatile("mcr p10, 7, %0, c11, c0, 0" : : "r" (val));
+	/* mcr p10, 7, r0, c11, c0, 0 as a raw ARM opcode, see above */
+	register u32 r0 asm("r0") = val;
+
+	asm volatile(".inst 0xeeeb0a10" : : "r" (r0));
 }
 
 /*
