@@ -230,6 +230,10 @@ step3_compile()
 	# no 'rm -rf out/arch/arm/boot': keep the build incremental and detect
 	# failures from make's exit status instead
 	rm -f anykernel_boeffla/zImage anykernel_boeffla/dt
+	# but drop the DTBs: dtbTool packs every *.dtb it finds there, so the
+	# ones left by other variants would end up in this variant's dt.img
+	# (and win over ours when two share chipset/platform/revision)
+	rm -f out/arch/arm/boot/*.dtb out/arch/arm/boot/dt.img
 
 	make "${MAKE_ARGS[@]}" -j"$NUM_CPUS" 2>&1 | tee ../compile.log
 	[ ${PIPESTATUS[0]} -eq 0 ] && [ -e out/arch/arm/boot/zImage ] ||
