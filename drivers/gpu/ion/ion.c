@@ -251,6 +251,8 @@ static void ion_delayed_unsecure(struct ion_buffer *buffer)
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
+	/* drop IOMMU mappings kept with ION_IOMMU_UNMAP_DELAYED */
+	msm_ion_iommu_buffer_destroy(buffer->sg_table);
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);

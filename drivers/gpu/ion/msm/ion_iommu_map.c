@@ -15,12 +15,14 @@
 #include <linux/export.h>
 #include <linux/iommu.h>
 #include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 
 #include <mach/iommu_domains.h>
+
+#include "../ion_priv.h"
 
 enum {
 	DI_PARTITION_NUM = 0,
@@ -56,17 +58,26 @@ struct ion_iommu_map {
 		uint64_t key;
 	};
 	struct ion_iommu_meta *meta;
-	struct kref ref;
+	int users;	/* protected by meta->lock */
 	int mapped_size;
 	unsigned long flags;
 };
 
 
+/*
+ * @users counts the active ion_map_iommu() mappings (and nothing else); it
+ * is protected by msm_iommu_map_mutex.  While it is non-zero the meta holds
+ * a dma_buf reference (@dbuf), so the buffer can't go away under a mapping.
+ * Mappings made with ION_IOMMU_UNMAP_DELAYED stay in @iommu_maps when their
+ * last user unmaps them; the meta then drops @dbuf but stays in iommu_root,
+ * and msm_ion_iommu_buffer_destroy() tears the mappings down when the buffer
+ * itself is freed.  The next ion_map_iommu() of the same buffer reuses them.
+ */
 struct ion_iommu_meta {
 	struct rb_node node;
 	struct ion_handle *handle;
 	struct rb_root iommu_maps;
-	struct kref ref;
+	int users;
 	struct sg_table *table;
 	unsigned long size;
 	struct mutex lock;
@@ -308,7 +319,7 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_iommu_meta *meta,
 	if (ret)
 		goto out;
 
-	kref_init(&data->ref);
+	data->users = 1;
 	*iova = data->iova_addr;
 	data->meta = meta;
 
@@ -321,10 +332,8 @@ out:
 	return ERR_PTR(ret);
 }
 
-static struct ion_iommu_meta *ion_iommu_meta_create(struct ion_client *client,
-						struct ion_handle *handle,
-						struct sg_table *table,
-						unsigned long size)
+static struct ion_iommu_meta *ion_iommu_meta_create(struct sg_table *table,
+						    unsigned long size)
 {
 	struct ion_iommu_meta *meta;
 
@@ -333,35 +342,86 @@ static struct ion_iommu_meta *ion_iommu_meta_create(struct ion_client *client,
 	if (!meta)
 		return ERR_PTR(-ENOMEM);
 
-	meta->handle = handle;
 	meta->table = table;
 	meta->size = size;
-	meta->dbuf = ion_share_dma_buf(client, handle);
-	kref_init(&meta->ref);
+	meta->iommu_maps = RB_ROOT;
 	mutex_init(&meta->lock);
 	ion_iommu_meta_add(meta);
 
 	return meta;
 }
 
-static void ion_iommu_meta_destroy(struct kref *kref)
+/* Called with msm_iommu_map_mutex held. */
+static int ion_iommu_meta_get(struct ion_iommu_meta *meta,
+			      struct ion_client *client,
+			      struct ion_handle *handle)
 {
-	struct ion_iommu_meta *meta = container_of(kref, struct ion_iommu_meta,
-						ref);
+	if (!meta->users) {
+		struct dma_buf *dbuf = ion_share_dma_buf(client, handle);
 
+		if (IS_ERR_OR_NULL(dbuf))
+			return dbuf ? PTR_ERR(dbuf) : -EINVAL;
+		meta->dbuf = dbuf;
+	}
+	meta->handle = handle;
+	meta->users++;
+	return 0;
+}
 
-	rb_erase(&meta->node, &iommu_root);
-	dma_buf_put(meta->dbuf);
-	kfree(meta);
+/* Called with msm_iommu_map_mutex held and no users left. */
+static void ion_iommu_meta_free_if_unused(struct ion_iommu_meta *meta)
+{
+	if (!meta->users && RB_EMPTY_ROOT(&meta->iommu_maps)) {
+		rb_erase(&meta->node, &iommu_root);
+		kfree(meta);
+	}
 }
 
 static void ion_iommu_meta_put(struct ion_iommu_meta *meta)
 {
+	struct dma_buf *dbuf = NULL;
+
 	/*
-	 * Need to lock here to prevent race against map/unmap
+	 * Need to lock here to prevent race against map/unmap.  The dma_buf
+	 * is put after unlocking: dropping the last reference frees the
+	 * buffer, and msm_ion_iommu_buffer_destroy() takes the mutex.
 	 */
 	mutex_lock(&msm_iommu_map_mutex);
-	kref_put(&meta->ref, ion_iommu_meta_destroy);
+	if (!--meta->users) {
+		dbuf = meta->dbuf;
+		meta->dbuf = NULL;
+		ion_iommu_meta_free_if_unused(meta);
+	}
+	mutex_unlock(&msm_iommu_map_mutex);
+	if (dbuf)
+		dma_buf_put(dbuf);
+}
+
+/*
+ * The ion buffer behind @table is being freed: unmap the IOMMU mappings that
+ * were kept after their last user (ION_IOMMU_UNMAP_DELAYED) and forget the
+ * meta, before the pages go back to the heap and the sg_table address can be
+ * reused by another buffer.
+ */
+void msm_ion_iommu_buffer_destroy(struct sg_table *table)
+{
+	struct ion_iommu_meta *meta;
+	struct rb_node *node;
+
+	mutex_lock(&msm_iommu_map_mutex);
+	meta = ion_iommu_meta_lookup(table);
+	if (meta && !WARN_ON(meta->users)) {
+		while ((node = rb_first(&meta->iommu_maps))) {
+			struct ion_iommu_map *map =
+				rb_entry(node, struct ion_iommu_map, node);
+
+			WARN_ON(map->users);
+			rb_erase(node, &meta->iommu_maps);
+			ion_iommu_heap_unmap_iommu(map);
+			kfree(map);
+		}
+		ion_iommu_meta_free_if_unused(meta);
+	}
 	mutex_unlock(&msm_iommu_map_mutex);
 }
 
@@ -393,8 +453,30 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
 	if (IS_ERR_OR_NULL(table))
 		return PTR_ERR(table);
 
-	for_each_sg(table->sgl, sg, table->nents, i)
-		size += sg_dma_len(sg);
+	/*
+	 * Only walk the scatterlist to size the buffer the first time it is
+	 * mapped: a display buffer can have thousands of entries and is
+	 * mapped again for every frame it is shown.
+	 */
+	mutex_lock(&msm_iommu_map_mutex);
+	iommu_meta = ion_iommu_meta_lookup(table);
+	if (!iommu_meta) {
+		for_each_sg(table->sgl, sg, table->nents, i)
+			size += sg_dma_len(sg);
+		iommu_meta = ion_iommu_meta_create(table, size);
+		if (IS_ERR(iommu_meta)) {
+			mutex_unlock(&msm_iommu_map_mutex);
+			return PTR_ERR(iommu_meta);
+		}
+	}
+	ret = ion_iommu_meta_get(iommu_meta, client, handle);
+	if (ret) {
+		ion_iommu_meta_free_if_unused(iommu_meta);
+		mutex_unlock(&msm_iommu_map_mutex);
+		return ret;
+	}
+	size = iommu_meta->size;
+	mutex_unlock(&msm_iommu_map_mutex);
 
 	if (!msm_use_iommu()) {
 		unsigned long pa = sg_dma_address(table->sgl);
@@ -431,16 +513,6 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
 		goto out;
 	}
 
-	mutex_lock(&msm_iommu_map_mutex);
-	iommu_meta = ion_iommu_meta_lookup(table);
-
-	if (!iommu_meta)
-		iommu_meta = ion_iommu_meta_create(client, handle, table, size);
-	else
-		kref_get(&iommu_meta->ref);
-	BUG_ON(iommu_meta->size != size);
-	mutex_unlock(&msm_iommu_map_mutex);
-
 	mutex_lock(&iommu_meta->lock);
 	iommu_map = ion_iommu_lookup(iommu_meta, domain_num, partition_num);
 	if (!iommu_map) {
@@ -468,7 +540,7 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
 			ret = -EINVAL;
 			goto out_unlock;
 		} else {
-			kref_get(&iommu_map->ref);
+			iommu_map->users++;
 			*iova = iommu_map->iova_addr;
 		}
 	}
@@ -484,18 +556,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(ion_map_iommu);
-
-
-static void ion_iommu_map_release(struct kref *kref)
-{
-	struct ion_iommu_map *map = container_of(kref, struct ion_iommu_map,
-						ref);
-	struct ion_iommu_meta *meta = map->meta;
-
-	rb_erase(&map->node, &meta->iommu_maps);
-	ion_iommu_heap_unmap_iommu(map);
-	kfree(map);
-}
 
 void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
 			int domain_num, int partition_num)
@@ -517,7 +577,7 @@ void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
 
 	mutex_lock(&msm_iommu_map_mutex);
 	meta = ion_iommu_meta_lookup(table);
-	if (!meta) {
+	if (!meta || !meta->users) {
 		WARN(1, "%s: (%d,%d) was never mapped for %p\n", __func__,
 				domain_num, partition_num, handle);
 		mutex_unlock(&msm_iommu_map_mutex);
@@ -529,14 +589,23 @@ void ion_unmap_iommu(struct ion_client *client, struct ion_handle *handle,
 	mutex_lock(&meta->lock);
 	iommu_map = ion_iommu_lookup(meta, domain_num, partition_num);
 
-	if (!iommu_map) {
+	if (!iommu_map || !iommu_map->users) {
 		WARN(1, "%s: (%d,%d) was never mapped for %p\n", __func__,
 				domain_num, partition_num, handle);
 		mutex_unlock(&meta->lock);
 		goto out;
 	}
 
-	kref_put(&iommu_map->ref, ion_iommu_map_release);
+	/*
+	 * ION_IOMMU_UNMAP_DELAYED mappings are kept for the next map of the
+	 * same buffer and torn down in msm_ion_iommu_buffer_destroy().
+	 */
+	if (!--iommu_map->users &&
+	    !(iommu_map->flags & ION_IOMMU_UNMAP_DELAYED)) {
+		rb_erase(&iommu_map->node, &meta->iommu_maps);
+		ion_iommu_heap_unmap_iommu(iommu_map);
+		kfree(iommu_map);
+	}
 	mutex_unlock(&meta->lock);
 
 	ion_iommu_meta_put(meta);

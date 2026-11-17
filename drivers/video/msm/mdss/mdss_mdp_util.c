@@ -593,9 +593,17 @@ int mdss_mdp_get_img(struct msmfb_data *img, struct mdss_mdp_img_data *data)
 				domain = MDSS_IOMMU_DOMAIN_UNSECURE;
 			}
 
+			/*
+			 * Keep unsecure display mappings until the buffer is
+			 * freed: a buffer is unmapped when it leaves the
+			 * screen and mapped again when it comes back, which
+			 * rewrote ~2000 IOMMU PTEs per 1080p frame.
+			 */
 			ret = ion_map_iommu(iclient, data->srcp_ihdl,
 					    mdss_get_iommu_domain(domain),
-					    0, SZ_4K, 0, start, len, 0, 0);
+					    0, SZ_4K, 0, start, len, 0,
+					    domain == MDSS_IOMMU_DOMAIN_SECURE ?
+					    0 : ION_IOMMU_UNMAP_DELAYED);
 			if (ret && (domain == MDSS_IOMMU_DOMAIN_SECURE))
 				msm_ion_unsecure_buffer(iclient,
 						data->srcp_ihdl);

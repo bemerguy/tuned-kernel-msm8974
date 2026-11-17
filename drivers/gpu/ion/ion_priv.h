@@ -398,4 +398,10 @@ struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
 
 int ion_handle_put(struct ion_handle *handle);
 
+#ifdef CONFIG_ION_MSM
+void msm_ion_iommu_buffer_destroy(struct sg_table *table);
+#else
+static inline void msm_ion_iommu_buffer_destroy(struct sg_table *table) { }
+#endif
+
 #endif /* _ION_PRIV_H */
