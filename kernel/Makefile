@@ -29,6 +29,7 @@ endif
 
 obj-y += sched/
 obj-y += power/
+obj-y += bpf_stub.o
 
 obj-$(CONFIG_FREEZER) += freezer.o
 obj-$(CONFIG_PROFILING) += profile.o
