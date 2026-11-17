@@ -271,6 +271,23 @@ static int do_maps_open(struct inode *inode, struct file *file,
 				sizeof(struct proc_maps_private));
 }
 
+/*
+ * Indicate if the VMA is a stack for the given task; for /proc/PID/maps
+ * that is the stack of the main task (v4.5, 65376df58217 "proc: revert
+ * /proc/<pid>/maps [stack:TID] annotation"): finding which thread a stack
+ * belongs to walked every thread for every vma, quadratic for ART processes
+ * with ~100 threads and ~5000 vmas, and Android reads smaps periodically.
+ */
+static int is_stack(struct task_struct *task, struct vm_area_struct *vma,
+		    int is_pid)
+{
+	if (is_pid)
+		return vma->vm_start <= vma->vm_mm->start_stack &&
+			vma->vm_end >= vma->vm_mm->start_stack;
+	/* /proc/PID/task/TID/maps: only that thread's stack, O(1) */
+	return vm_is_stack(task, vma, 0) != 0;
+}
+
 static void
 show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 {
@@ -319,8 +336,6 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 
 	name = arch_vma_name(vma);
 	if (!name) {
-		pid_t tid;
-
 		if (!mm) {
 			name = "[vdso]";
 			goto done;
@@ -332,21 +347,8 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 			goto done;
 		}
 
-		tid = vm_is_stack(task, vma, is_pid);
-
-		if (tid != 0) {
-			/*
-			 * Thread stack in /proc/PID/task/TID/maps or
-			 * the main process stack.
-			 */
-			if (!is_pid || (vma->vm_start <= mm->start_stack &&
-			    vma->vm_end >= mm->start_stack)) {
-				name = "[stack]";
-			} else {
-				/* Thread stack in /proc/PID/maps */
-				seq_pad(m, ' ');
-				seq_printf(m, "[stack:%d]", tid);
-			}
+		if (is_stack(task, vma, is_pid)) {
+			name = "[stack]";
 			goto done;
 		}
 
@@ -1367,19 +1369,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 		seq_path(m, &file->f_path, "\n\t= ");
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
 		seq_printf(m, " heap");
-	} else {
-		pid_t tid = vm_is_stack(proc_priv->task, vma, is_pid);
-		if (tid != 0) {
-			/*
-			 * Thread stack in /proc/PID/task/TID/maps or
-			 * the main process stack.
-			 */
-			if (!is_pid || (vma->vm_start <= mm->start_stack &&
-			    vma->vm_end >= mm->start_stack))
-				seq_printf(m, " stack");
-			else
-				seq_printf(m, " stack:%d", tid);
-		}
+	} else if (is_stack(proc_priv->task, vma, is_pid)) {
+		seq_printf(m, " stack");
 	}
 
 	if (is_vm_hugetlb_page(vma))
