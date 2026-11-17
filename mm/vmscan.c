@@ -2909,6 +2909,8 @@ loop_again:
 
 	do {
 		unsigned long lru_pages = 0;
+		unsigned long pass_scanned;
+		bool pass_shrunk = false;
 		int has_under_min_watermark_zone = 0;
 
 		unbalanced_zone = NULL;
@@ -2961,6 +2963,7 @@ loop_again:
 
 			lru_pages += zone_reclaimable_pages(zone);
 		}
+		pass_scanned = 0;
 
 		/*
 		 * Now scan the zone in the dma->highmem direction, stopping
@@ -2973,7 +2976,7 @@ loop_again:
 		 */
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
-			int nr_slab, testorder;
+			int testorder;
 			unsigned long balance_gap;
 
 			if (!populated_zone(zone))
@@ -3024,13 +3027,9 @@ loop_again:
 			    !zone_balanced(zone, testorder,
 					   balance_gap, end_zone)) {
 				shrink_zone(zone, &sc);
-
-				reclaim_state->reclaimed_slab = 0;
-				shrink.priority = sc.priority;
-				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
-				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+				pass_shrunk = true;
+				pass_scanned += sc.nr_scanned;
 				total_scanned += sc.nr_scanned;
-
 			}
 
 			/*
@@ -3070,6 +3069,22 @@ loop_again:
 			}
 
 		}
+
+		/*
+		 * Shrink slab once per pass over the node, as mainline does
+		 * since v3.19 (6b4f7799c6a5).  lru_pages already covers every
+		 * zone up to end_zone, so feeding it the scan count of all the
+		 * zones keeps the same pressure as one call per zone did, but
+		 * walks the shrinker list (one shrinker per superblock, ~45
+		 * here, each a cache miss) once instead of once per zone.
+		 */
+		if (pass_shrunk) {
+			reclaim_state->reclaimed_slab = 0;
+			shrink.priority = sc.priority;
+			shrink_slab(&shrink, pass_scanned, lru_pages);
+			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+		}
+
 		if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
 			break;		/* kswapd: all done */
 		/*
