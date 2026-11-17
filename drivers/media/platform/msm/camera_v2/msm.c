@@ -40,6 +40,19 @@ static struct msm_queue_head *msm_session_q;
 static struct v4l2_fh  *msm_eventq;
 spinlock_t msm_eventq_lock;
 
+/*
+ * mm-qcamera-daemon opens the config node first, spends seconds setting up
+ * its modules (sensor EEPROM, companion firmware, ...) and only then
+ * subscribes to its events.  An event queued before that is dropped by
+ * V4L2, so a camera open by the HAL at boot (it opens every camera at once
+ * to read its static info) timed out and that camera kept default info,
+ * e.g. orientation 0 and a rotated preview.  Hold events back, bounded,
+ * until the daemon has subscribed.
+ */
+#define MSM_DAEMON_SUBSCRIBE_TIMEOUT 15000
+static bool msm_daemon_subscribed;
+static DECLARE_WAIT_QUEUE_HEAD(msm_daemon_wq);
+
 static struct pid *msm_pid;
 spinlock_t msm_pid_lock;
 
@@ -716,7 +729,13 @@ static int msm_unsubscribe_event(struct v4l2_fh *fh,
 static int msm_subscribe_event(struct v4l2_fh *fh,
 			       struct v4l2_event_subscription *sub)
 {
-	return v4l2_event_subscribe(fh, sub, 5);
+	int rc = v4l2_event_subscribe(fh, sub, 5);
+
+	if (!rc && !ACCESS_ONCE(msm_daemon_subscribed)) {
+		ACCESS_ONCE(msm_daemon_subscribed) = true;
+		wake_up_all(&msm_daemon_wq);
+	}
+	return rc;
 }
 
 static const struct v4l2_ioctl_ops g_msm_ioctl_ops = {
@@ -779,6 +798,12 @@ int msm_post_event(struct v4l2_event *event, int timeout)
 		return -ENODEV;
 	}
 	spin_unlock_irqrestore(&msm_eventq_lock, flags);
+
+	if (!ACCESS_ONCE(msm_daemon_subscribed) &&
+	    !wait_event_timeout(msm_daemon_wq, ACCESS_ONCE(msm_daemon_subscribed),
+			msecs_to_jiffies(MSM_DAEMON_SUBSCRIBE_TIMEOUT)))
+		pr_warn("%s: camera daemon has not subscribed to events\n",
+			__func__);
 
 	vdev = msm_eventq->vdev;
 
@@ -878,6 +903,7 @@ static int msm_close(struct file *filep)
 
 	spin_lock_irqsave(&msm_eventq_lock, flags);
 	msm_eventq = NULL;
+	msm_daemon_subscribed = false;
 	spin_unlock_irqrestore(&msm_eventq_lock, flags);
 	v4l2_fh_release(filep);
 
@@ -929,6 +955,7 @@ static int msm_open(struct file *filep)
 
 	spin_lock_irqsave(&msm_eventq_lock, flags);
 	msm_eventq = filep->private_data;
+	msm_daemon_subscribed = false;
 	spin_unlock_irqrestore(&msm_eventq_lock, flags);
 
 	pr_warn("%s : Succeed!", __func__);
