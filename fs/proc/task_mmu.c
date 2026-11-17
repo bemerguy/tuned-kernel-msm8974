@@ -738,6 +738,106 @@ const struct file_operations proc_pid_smaps_simple_operations = {
 	.release	= single_release,
 };
 
+/*
+ * /proc/PID/smaps_rollup (v4.14 493b0e9d945f, single_open form of v4.19
+ * 258f669e7e88): the sum of every vma's smaps counters in one record, so
+ * readers that only want totals (Android's libmeminfo, used by
+ * ActivityManager for PSS) avoid formatting and parsing one block per vma.
+ */
+static int proc_pid_smaps_rollup_show(struct seq_file *m, void *v)
+{
+	struct pid *pid = (struct pid *)m->private;
+	struct task_struct *task;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	unsigned long last_vma_end = 0;
+	struct mem_size_stats mss;
+	u64 pss_locked = 0;
+	int ret = 0;
+	struct mm_walk smaps_walk = {
+		.pmd_entry = smaps_pte_range,
+		.private = &mss,
+	};
+
+	task = get_pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		return -ESRCH;
+
+	mm = mm_access(task, PTRACE_MODE_READ);
+	if (IS_ERR(mm)) {
+		ret = PTR_ERR(mm);
+		goto out_task;
+	}
+	if (!mm)
+		goto out_task;
+
+	memset(&mss, 0, sizeof mss);
+	down_read(&mm->mmap_sem);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		u64 pss_before = mss.pss;
+
+		mss.vma = vma;
+		smaps_walk.mm = vma->vm_mm;
+		if (vma->vm_mm && !is_vm_hugetlb_page(vma))
+			walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
+		if (vma->vm_flags & VM_LOCKED)
+			pss_locked += mss.pss - pss_before;
+		last_vma_end = vma->vm_end;
+	}
+
+	if (mm->mmap) {
+		seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
+		seq_printf(m, "%08lx-%08lx ---p %08llx %02x:%02x %lu ",
+			   mm->mmap->vm_start, last_vma_end, 0ULL, 0, 0, 0UL);
+		seq_pad(m, ' ');
+		seq_puts(m, "[rollup]\n");
+
+		seq_printf(m,
+			   "Rss:            %8lu kB\n"
+			   "Pss:            %8lu kB\n"
+			   "Shared_Clean:   %8lu kB\n"
+			   "Shared_Dirty:   %8lu kB\n"
+			   "Private_Clean:  %8lu kB\n"
+			   "Private_Dirty:  %8lu kB\n"
+			   "Referenced:     %8lu kB\n"
+			   "Anonymous:      %8lu kB\n"
+			   "AnonHugePages:  %8lu kB\n"
+			   "Swap:           %8lu kB\n"
+			   "SwapPss:        %8lu kB\n"
+			   "Locked:         %8lu kB\n",
+			   mss.resident >> 10,
+			   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+			   mss.shared_clean  >> 10,
+			   mss.shared_dirty  >> 10,
+			   mss.private_clean >> 10,
+			   mss.private_dirty >> 10,
+			   mss.referenced >> 10,
+			   mss.anonymous >> 10,
+			   mss.anonymous_thp >> 10,
+			   mss.swap >> 10,
+			   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
+			   (unsigned long)(pss_locked >> (10 + PSS_SHIFT)));
+	}
+	up_read(&mm->mmap_sem);
+	mmput(mm);
+
+out_task:
+	put_task_struct(task);
+	return ret;
+}
+
+static int proc_pid_smaps_rollup_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_pid_smaps_rollup_show, proc_pid(inode));
+}
+
+const struct file_operations proc_pid_smaps_rollup_operations = {
+	.open		= proc_pid_smaps_rollup_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 const struct file_operations proc_tid_smaps_operations = {
 	.open		= tid_smaps_open,
 	.read		= seq_read,
