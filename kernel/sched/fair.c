@@ -81,8 +81,12 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
  * tasks go to idle CPUs when woken. If this is off, note that the
  * per-task flag PF_WAKE_ON_IDLE can still cause a task to go to an
  * idle CPU upon being woken.
+ *
+ * On by default: same-boot A/B on klte (airplane mode, 1.5 GHz fixed,
+ * 8 offline apps x 5 rounds cold launch) gave -2.3% launch time and won
+ * every round.
  */
-unsigned int __read_mostly sysctl_sched_wake_to_idle;
+unsigned int __read_mostly sysctl_sched_wake_to_idle = 1;
 
 /*
  * SCHED_OTHER wake-up granularity.
