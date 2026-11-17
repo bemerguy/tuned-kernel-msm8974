@@ -79,13 +79,30 @@ static unsigned int hispeed_freq = 1267200;
 static unsigned int draw_floor_freq = 1267200;
 static unsigned int draw_hold_ms = 64;
 
-static bool cpu_is_drawing(int cpu)
+static bool cpu_drew_recently(int cpu)
 {
 	unsigned long last = per_cpu(sched_ui_last_run, cpu);
 
-	return draw_floor_freq && last &&
-		time_before(jiffies, last + msecs_to_jiffies(draw_hold_ms));
+	return last && time_before(jiffies, last + msecs_to_jiffies(draw_hold_ms));
 }
+
+static bool cpu_is_drawing(int cpu)
+{
+	return draw_floor_freq && cpu_drew_recently(cpu);
+}
+
+/*
+ * Draw boost: a CPU that is drawing (cpu_drew_recently()) and loaded at or
+ * above go_hispeed_load jumps straight to draw_boost_freq (default: the
+ * stock maximum) instead of climbing the above_hispeed_delay steps, which
+ * took 35 ms or more from hispeed_freq, i.e. two frames.  If it is already
+ * there and saturated (load >= 99) it goes straight to policy->max.  While
+ * the CPU keeps drawing, the boosted speed is held for draw_hold_ms instead
+ * of min_sample_time, so the gaps between frames don't drop it.  Light
+ * drawing never reaches go_hispeed_load and stays on the draw floor.
+ * draw_boost_freq = 0 disables it.
+ */
+static unsigned int draw_boost_freq = 2457600;
 
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 90
@@ -679,6 +696,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	int i, max_load;
 	unsigned int max_freq;
 	struct cpufreq_interactive_cpuinfo *picpu;
+	bool draw_boost;
 #ifdef CONFIG_MODE_AUTO_CHANGE
 	unsigned int new_mode;
 #endif
@@ -774,7 +792,16 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (new_freq < draw_floor_freq && cpu_is_drawing(data))
 		new_freq = draw_floor_freq;
 
-	if (pcpu->policy->cur >= hispeed_freq &&
+	draw_boost = draw_boost_freq && cpu_load >= go_hispeed_load &&
+		cpu_drew_recently(data);
+	if (draw_boost) {
+		if (pcpu->policy->cur >= draw_boost_freq && cpu_load >= 99)
+			new_freq = pcpu->policy->max;
+		else if (new_freq < draw_boost_freq)
+			new_freq = draw_boost_freq;
+	}
+
+	if (!draw_boost && pcpu->policy->cur >= hispeed_freq &&
 	    new_freq > pcpu->policy->cur &&
 	    now - pcpu->hispeed_validate_time <
 	    freq_to_above_hispeed_delay(pcpu->policy->cur)) {
@@ -801,6 +828,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 	}
 	else
 		mod_min_sample_time = min_sample_time;
+
+	/* hold a draw boost through the gaps between frames */
+	if (draw_boost_freq && pcpu->floor_freq >= draw_boost_freq &&
+	    cpu_drew_recently(data))
+		mod_min_sample_time = max_t(unsigned long, mod_min_sample_time,
+					    draw_hold_ms * USEC_PER_MSEC);
 
 	if (pcpu->minfreq_boost) {
 		if (sampling_down_factor &&
@@ -1788,7 +1821,29 @@ static ssize_t store_draw_hold_ms(struct kobject *kobj,
 static struct global_attr draw_hold_ms_attr = __ATTR(draw_hold_ms,
 	0644, show_draw_hold_ms, store_draw_hold_ms);
 
+static ssize_t show_draw_boost_freq(struct kobject *kobj,
+				    struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", draw_boost_freq);
+}
+
+static ssize_t store_draw_boost_freq(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	unsigned int val;
+	int ret = kstrtouint(buf, 0, &val);
+
+	if (ret < 0)
+		return ret;
+	draw_boost_freq = val;
+	return count;
+}
+
+static struct global_attr draw_boost_freq_attr = __ATTR(draw_boost_freq,
+	0644, show_draw_boost_freq, store_draw_boost_freq);
+
 static struct attribute *interactive_attributes[] = {
+	&draw_boost_freq_attr.attr,
 	&draw_floor_freq_attr.attr,
 	&draw_hold_ms_attr.attr,
 	&target_loads_attr.attr,
