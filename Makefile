@@ -702,11 +702,12 @@ export CLANG_FLAGS
 # bandido-lineageos 80/200/50 on klte (15 rounds, cpu0 at 1.5 GHz):
 # thread -2.9%, fork -1.8%, 1 MB anon alloc -4.8%, file mmap -2.8%,
 # cold read +2.6%, app cold launch unchanged; kernel text +1.3 MB.
+# Cold inline thresholds are left at the LLVM default (45): vs 12, cached
+# read -2.7% (P 0.94), thread -1.2%, alloc -0.9%, file mmap -1.1%, +69 KB
+# text; 0 gained nothing, 100 was slower than 45 and +265 KB.
 LLVMPARAMS := \
-  -mllvm -inlinecold-threshold=12 \
   -mllvm -inline-threshold=150 \
   -mllvm -inlinehint-threshold=300 \
-  -mllvm -inline-cold-callsite-threshold=12 \
   -mllvm -locally-hot-callsite-threshold=350 \
   -mllvm -hot-callsite-threshold=1000 \
   -mllvm -inline-enable-cost-benefit-analysis=true \
