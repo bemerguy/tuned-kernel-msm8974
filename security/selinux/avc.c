@@ -34,8 +34,14 @@
 #include "avc_ss.h"
 #include "classmap.h"
 
-#define AVC_CACHE_SLOTS			512
-#define AVC_DEF_CACHE_THRESHOLD		512
+/*
+ * Android policies make the AVC churn at 512 entries (nearly every miss
+ * reclaims an entry), and each miss walks the policy's avtab.  2048 entries
+ * cost ~100 KB of avc_node slab; the threshold stays tunable through
+ * /sys/fs/selinux/avc/cache_threshold.
+ */
+#define AVC_CACHE_SLOTS			2048
+#define AVC_DEF_CACHE_THRESHOLD		2048
 #define AVC_CACHE_RECLAIM		16
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
