@@ -11,6 +11,8 @@
  */
 
 
+#include <linux/namei.h>
+#include <linux/path.h>
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
@@ -716,6 +718,87 @@ static struct v4l2_file_operations camera_v4l2_fops = {
 	.ioctl		= video_ioctl2,
 };
 
+/*
+ * The camera HAL counts cameras once, at mediaserver start, by opening
+ * /dev/media0, media1, ... until one is missing.  Each sensor's media and
+ * video nodes are registered here when mm-qcamera-daemon probes it, but the
+ * files in /dev are created later by ueventd, which on this platform can
+ * lag several seconds behind at boot (its coldboot restorecon of /sys alone
+ * takes ~16 s).  If the HAL looks before ueventd catches up it stops at the
+ * missing /dev/mediaN and reports no camera until mediaserver restarts.
+ *
+ * Remember the sensor nodes, and let media_open() of other processes wait
+ * (bounded) until every sensor slot of the device tree has been probed and
+ * ueventd has created its nodes.  Once that happened the check is switched
+ * off for good.
+ */
+#ifdef CONFIG_MSM_CAMERA_SENSOR
+bool msm_sensor_probe_pending(void);
+#else
+static inline bool msm_sensor_probe_pending(void) { return false; }
+#endif
+#define CAMERA_MAX_DEVNODES	8
+#define CAMERA_DEVNODE_WAIT_MS	10000
+
+static char camera_devnodes[CAMERA_MAX_DEVNODES][24];
+static int camera_nr_devnodes;
+static bool camera_devnodes_done;
+static DEFINE_MUTEX(camera_devnodes_lock);
+
+static void camera_add_devnode(const char *name)
+{
+	mutex_lock(&camera_devnodes_lock);
+	if (camera_nr_devnodes < CAMERA_MAX_DEVNODES) {
+		snprintf(camera_devnodes[camera_nr_devnodes],
+			 sizeof(camera_devnodes[0]), "/dev/%s", name);
+		camera_nr_devnodes++;
+		camera_devnodes_done = false;
+	}
+	mutex_unlock(&camera_devnodes_lock);
+}
+
+static bool camera_devnodes_present(void)
+{
+	struct path p;
+	bool present = true;
+	int i;
+
+	mutex_lock(&camera_devnodes_lock);
+	for (i = 0; i < camera_nr_devnodes; i++) {
+		if (kern_path(camera_devnodes[i], LOOKUP_FOLLOW, &p)) {
+			present = false;
+			break;
+		}
+		path_put(&p);
+	}
+	mutex_unlock(&camera_devnodes_lock);
+	return present;
+}
+
+void msm_camera_wait_devnodes(void)
+{
+	unsigned long timeout;
+
+	if (ACCESS_ONCE(camera_devnodes_done))
+		return;
+	/* the daemon probes the sensors; ueventd creates the nodes */
+	if (!strncmp(current->group_leader->comm, "mm-qcamera-daem", 15) ||
+	    !strcmp(current->group_leader->comm, "ueventd"))
+		return;
+
+	/* never sleep with camera_devnodes_lock held: the probe needs it */
+	timeout = jiffies + msecs_to_jiffies(CAMERA_DEVNODE_WAIT_MS);
+	while (msm_sensor_probe_pending() || !camera_devnodes_present()) {
+		if (time_after(jiffies, timeout)) {
+			pr_warn("%s: sensors not probed or not in /dev yet\n",
+				__func__);
+			break;
+		}
+		msleep(10);
+	}
+	camera_devnodes_done = true;
+}
+
 int camera_init_v4l2(struct device *dev, unsigned int *session)
 {
 	struct msm_video_device *pvdev;
@@ -789,6 +872,16 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
 	*session = pvdev->vdev->num;
 	atomic_set(&pvdev->opened, 0);
 	video_set_drvdata(pvdev->vdev, pvdev);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	{
+		char name[16];
+
+		snprintf(name, sizeof(name), "media%d",
+			 v4l2_dev->mdev->devnode->minor);
+		camera_add_devnode(name);
+	}
+#endif
+	camera_add_devnode(video_device_node_name(pvdev->vdev));
 	pr_warn("%s : Succeed!", __func__);
 	goto init_end;
 

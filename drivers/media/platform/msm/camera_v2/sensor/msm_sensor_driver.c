@@ -38,6 +38,18 @@ static const struct of_device_id msm_sensor_driver_dt_match[] = {
 
 MODULE_DEVICE_TABLE(of, msm_sensor_driver_dt_match);
 
+/*
+ * Sensor slots declared in the device tree and how many of them
+ * mm-qcamera-daemon has probed; see msm_camera_wait_devnodes().
+ */
+static atomic_t msm_sensor_slots = ATOMIC_INIT(0);
+static atomic_t msm_sensor_probed = ATOMIC_INIT(0);
+
+bool msm_sensor_probe_pending(void)
+{
+	return atomic_read(&msm_sensor_probed) < atomic_read(&msm_sensor_slots);
+}
+
 static struct platform_driver msm_sensor_platform_driver = {
 	.driver			= {
 		.name		= "qcom,camera",
@@ -371,6 +383,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 	 * probed on this slot
 	 */
 	s_ctrl->is_probe_succeed = 1;
+	atomic_inc(&msm_sensor_probed);
 	return rc;
 
  FREE_POWER_OFF_SETTING:
@@ -616,6 +629,7 @@ static int32_t msm_sensor_driver_parse(struct platform_device *pdev)
 
 	/* Store sensor control structure in static database */
 	g_sctrl[pdev->id] = s_ctrl;
+	atomic_inc(&msm_sensor_slots);
 	pr_warn("g_sctrl[%d] %pK\n", pdev->id, g_sctrl[pdev->id]);
 
 	return rc;

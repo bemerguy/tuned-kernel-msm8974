@@ -45,6 +45,12 @@
 #include <media/media-devnode.h>
 #include <media/media-device.h>
 
+#ifdef CONFIG_MSMB_CAMERA
+void msm_camera_wait_devnodes(void);
+#else
+static inline void msm_camera_wait_devnodes(void) { }
+#endif
+
 #define MEDIA_NUM_DEVICES	256
 #define MEDIA_NAME		"media"
 
@@ -132,6 +138,8 @@ static int media_open(struct inode *inode, struct file *filp)
 {
 	struct media_devnode *devnode;
 	int ret;
+
+	msm_camera_wait_devnodes();
 
 	/* Check if the media device is available. This needs to be done with
 	 * the media_devnode_lock held to prevent an open/unregister race:
