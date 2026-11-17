@@ -236,13 +236,13 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	if (do_align)
 		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
 
-	do {
+	vma = find_vma(mm, addr);
+	for (;;) {
 		/*
 		 * Lookup failure means no vma is above this address,
 		 * else if new region fits below vma->vm_start,
 		 * return with success:
 		 */
-		vma = find_vma(mm, addr);
 		if (!vma || addr+len <= vma->vm_start)
 			/* remember the address as a hint for next time */
 			return (mm->free_area_cache = addr);
@@ -255,7 +255,19 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		addr = vma->vm_start - len;
 		if (do_align)
 			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
-	} while (len < vma->vm_start);
+		if (len >= vma->vm_start)
+			break;
+
+		/*
+		 * find_vma(mm, addr): addr is below this vma, so the lowest
+		 * vma ending above addr is reached through vm_prev.  This
+		 * walk can cover thousands of vmas (ART processes have
+		 * ~6000) and a fresh rbtree descent per step made each
+		 * mmap() cost thousands of cache-missing tree walks.
+		 */
+		while (vma->vm_prev && vma->vm_prev->vm_end > addr)
+			vma = vma->vm_prev;
+	}
 
 bottomup:
 	/*
