@@ -268,8 +268,9 @@ enum ocr_request {
  * load switched the phone off.  Sample VPH_PWR every 20 ms (deferrable, so
  * an idle CPU is never woken for it) and lower the CPU max frequency like
  * the thermal limit does: one table step below VBAT_STEP_MV, straight to
- * at most VBAT_HARD_FREQ below VBAT_HARD_MV; one step back up after the
- * voltage stayed above VBAT_RELEASE_MV for VBAT_RELEASE_MS.  On the charger
+ * at most VBAT_HARD_FREQ below VBAT_HARD_MV; one step back up each
+ * VBAT_RELEASE_MS the voltage stays above VBAT_RELEASE_MV, released once
+ * the next step would reach the user's max frequency.  On the charger
  * VPH_PWR stays high, so nothing happens there.
  *
  * Bursts of -0.4 V lasting 40 ms ride on top of the sustained level and
@@ -290,7 +291,7 @@ static int vbat_protect = 1;
 static int vbat_step_mv = 3300;
 static int vbat_hard_mv = 3150;
 static int vbat_release_mv = 3550;
-static int vbat_release_ms = 2000;
+static int vbat_release_ms = 200;
 static int vbat_min_mv = INT_MAX;
 static int vbat_steps_down;
 module_param(vbat_protect, int, 0644);
@@ -411,7 +412,7 @@ static void vbat_work_fn(struct work_struct *work)
 	struct cpufreq_frequency_table *t = cpufreq_frequency_get_table(0);
 	struct cpufreq_policy *policy;
 	struct qpnp_vadc_result res;
-	uint32_t cur_max, cap = vbat_cap;
+	uint32_t cur_max, user_max = UINT_MAX, cap = vbat_cap;
 	int mv;
 
 	if (!vbat_vadc) {
@@ -441,8 +442,10 @@ static void vbat_work_fn(struct work_struct *work)
 
 	policy = cpufreq_cpu_get(0);
 	cur_max = policy ? policy->max : UINT_MAX;
-	if (policy)
+	if (policy) {
+		user_max = policy->user_policy.max;
 		cpufreq_cpu_put(policy);
+	}
 
 	if (mv < vbat_step_mv) {
 		uint32_t from = min(cap, cur_max);
@@ -463,6 +466,9 @@ static void vbat_work_fn(struct work_struct *work)
 		   time_after(jiffies, vbat_last_low +
 			      msecs_to_jiffies(vbat_release_ms))) {
 		cap = vbat_step_up(t, cap);
+		/* steps above the user's max limit nothing: release at once */
+		if (cap >= user_max)
+			cap = UINT_MAX;
 		/* one step per release period */
 		vbat_last_low = jiffies;
 		if (cap == UINT_MAX)
