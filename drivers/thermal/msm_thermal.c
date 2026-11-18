@@ -42,6 +42,8 @@
 #include <mach/rpm-smd.h>
 #include <mach/scm.h>
 #include <linux/sched.h>
+#include <linux/qpnp/qpnp-adc.h>
+#include <linux/math64.h>
 
 #define MAX_CURRENT_UA 1000000
 #define MAX_RAILS 5
@@ -257,11 +259,55 @@ enum ocr_request {
 #define PSM_REG_MODE_FROM_ATTRIBS(attr) \
 	(container_of(attr, struct psm_rail, mode_attr));
 
+/*
+ * Battery brownout limiter.
+ *
+ * With a worn battery a burst of CPU load pulls VPH_PWR down fast: on klte
+ * with a battery at 100%, four cores at 2457 MHz dipped to 3.34 V and at
+ * 2.76 GHz to 3.09 V, in bursts of 40-120 ms, and pulling the cable under
+ * load switched the phone off.  Sample VPH_PWR every 20 ms (deferrable, so
+ * an idle CPU is never woken for it) and lower the CPU max frequency like
+ * the thermal limit does: one table step below VBAT_STEP_MV, straight to
+ * at most VBAT_HARD_FREQ below VBAT_HARD_MV; one step back up after the
+ * voltage stayed above VBAT_RELEASE_MV for VBAT_RELEASE_MS.  On the charger
+ * VPH_PWR stays high, so nothing happens there.
+ *
+ * Bursts of -0.4 V lasting 40 ms ride on top of the sustained level and
+ * slip between samples; 2.97 V was seen without a shutdown.  Four cores
+ * at full load on that battery: no limiter min 3.09 V at 2.76 GHz;
+ * 3.30/3.20/3.45 V let the cap climb back too early (min 2.97 V);
+ * 3.40/3.25/3.60 V min 3.31 V at ~1.9-2.15 GHz; these 3.30/3.15/3.55 V
+ * min 3.09 V at ~2.2-2.25 GHz.
+ */
+#define VBAT_POLL_MS		20
+#define VBAT_HARD_FREQ		1958400
+static struct qpnp_vadc_chip *vbat_vadc;
+static struct device *vbat_dev;
+static struct delayed_work vbat_work;
+static uint32_t vbat_cap = UINT_MAX;
+static unsigned long vbat_last_low;
+static int vbat_protect = 1;
+static int vbat_step_mv = 3300;
+static int vbat_hard_mv = 3150;
+static int vbat_release_mv = 3550;
+static int vbat_release_ms = 2000;
+static int vbat_min_mv = INT_MAX;
+static int vbat_steps_down;
+module_param(vbat_protect, int, 0644);
+module_param(vbat_step_mv, int, 0644);
+module_param(vbat_hard_mv, int, 0644);
+module_param(vbat_release_mv, int, 0644);
+module_param(vbat_release_ms, int, 0644);
+module_param(vbat_min_mv, int, 0644);
+module_param(vbat_steps_down, int, 0644);
+module_param(vbat_cap, uint, 0444);
+
 static int  msm_thermal_cpufreq_callback(struct notifier_block *nfb,
 		unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	uint32_t max_freq_req = cpus[policy->cpu].limited_max_freq;
+	uint32_t max_freq_req = min(cpus[policy->cpu].limited_max_freq,
+				    vbat_cap);
 	uint32_t min_freq_req = cpus[policy->cpu].limited_min_freq;
 
 	switch (event) {
@@ -310,6 +356,122 @@ static void update_cpu_freq(int cpu)
 			pr_err("Unable to update policy for cpu:%d. err:%d\n",
 				cpu, ret);
 	}
+}
+
+static void vbat_set_cap(uint32_t cap)
+{
+	int cpu;
+
+	if (cap == vbat_cap)
+		return;
+	vbat_cap = cap;
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		update_cpu_freq(cpu);
+	put_online_cpus();
+}
+
+/* table index of the highest entry <= freq, -1 if none */
+static int vbat_idx_at_or_below(struct cpufreq_frequency_table *t, uint32_t freq)
+{
+	int i, best = -1;
+
+	for (i = 0; t[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (t[i].frequency == CPUFREQ_ENTRY_INVALID ||
+		    t[i].frequency > freq)
+			continue;
+		if (best < 0 || t[i].frequency > t[best].frequency)
+			best = i;
+	}
+	return best;
+}
+
+static uint32_t vbat_step_down(struct cpufreq_frequency_table *t,
+			       uint32_t from)
+{
+	int i = vbat_idx_at_or_below(t, from - 1);
+
+	return i < 0 ? from : t[i].frequency;
+}
+
+static uint32_t vbat_step_up(struct cpufreq_frequency_table *t, uint32_t from)
+{
+	uint32_t next = UINT_MAX;
+	int i;
+
+	for (i = 0; t[i].frequency != CPUFREQ_TABLE_END; i++)
+		if (t[i].frequency != CPUFREQ_ENTRY_INVALID &&
+		    t[i].frequency > from && t[i].frequency < next)
+			next = t[i].frequency;
+	return next;
+}
+
+static void vbat_work_fn(struct work_struct *work)
+{
+	struct cpufreq_frequency_table *t = cpufreq_frequency_get_table(0);
+	struct cpufreq_policy *policy;
+	struct qpnp_vadc_result res;
+	uint32_t cur_max, cap = vbat_cap;
+	int mv;
+
+	if (!vbat_vadc) {
+		vbat_vadc = qpnp_get_vadc(vbat_dev, "thermal");
+		if (IS_ERR(vbat_vadc)) {
+			if (PTR_ERR(vbat_vadc) != -EPROBE_DEFER) {
+				pr_info("%s: no VPH_PWR channel, off\n",
+					__func__);
+				vbat_vadc = NULL;
+				return;
+			}
+			vbat_vadc = NULL;
+			goto again;
+		}
+	}
+	if (!t)
+		goto again;
+	if (!vbat_protect) {
+		vbat_set_cap(UINT_MAX);
+		goto again;
+	}
+	if (qpnp_vadc_read(vbat_vadc, VSYS, &res))
+		goto again;
+	mv = (int)div_s64(res.physical, 1000);
+	if (mv < vbat_min_mv)
+		vbat_min_mv = mv;
+
+	policy = cpufreq_cpu_get(0);
+	cur_max = policy ? policy->max : UINT_MAX;
+	if (policy)
+		cpufreq_cpu_put(policy);
+
+	if (mv < vbat_step_mv) {
+		uint32_t from = min(cap, cur_max);
+
+		if (mv < vbat_hard_mv && from > VBAT_HARD_FREQ) {
+			int i = vbat_idx_at_or_below(t, VBAT_HARD_FREQ);
+
+			cap = i < 0 ? from : t[i].frequency;
+		} else {
+			cap = vbat_step_down(t, from);
+		}
+		vbat_last_low = jiffies;
+		vbat_steps_down++;
+		if (cap < from)
+			pr_err("VPH_PWR %d mV, limiting CPU max %u -> %u kHz\n",
+			       mv, from, cap);
+	} else if (cap != UINT_MAX && mv > vbat_release_mv &&
+		   time_after(jiffies, vbat_last_low +
+			      msecs_to_jiffies(vbat_release_ms))) {
+		cap = vbat_step_up(t, cap);
+		/* one step per release period */
+		vbat_last_low = jiffies;
+		if (cap == UINT_MAX)
+			pr_warn("VPH_PWR %d mV, CPU max limit released\n",
+				mv);
+	}
+	vbat_set_cap(cap);
+again:
+	schedule_delayed_work(&vbat_work, msecs_to_jiffies(VBAT_POLL_MS));
 }
 
 static int update_cpu_min_freq_all(uint32_t min)
@@ -3341,6 +3503,11 @@ static int __devinit msm_thermal_dev_probe(struct platform_device *pdev)
 	}
 	msm_thermal_ioctl_init();
 	ret = msm_thermal_init(&data);
+	if (of_find_property(node, "qcom,thermal-vadc", NULL)) {
+		vbat_dev = &pdev->dev;
+		INIT_DELAYED_WORK_DEFERRABLE(&vbat_work, vbat_work_fn);
+		schedule_delayed_work(&vbat_work, msecs_to_jiffies(5000));
+	}
 	msm_thermal_probed = true;
 
 	if (interrupt_mode_enable) {
